@@ -44,6 +44,25 @@
 #define SOFTRF_EEPROM_MAGIC   0xBABADEDA
 #define SOFTRF_EEPROM_VERSION 0x00000061
 
+/*
+ * Optional Bluetooth LE services that can be switched off ("bt_svc_off" bits).
+ * Default value 0 keeps every service enabled (legacy behaviour).
+ * Leaving HM-10 serial alone makes a device that some EFB apps
+ * (e.g. SeeYou Navigator) treat as a plain NMEA source.
+ */
+#define BT_SVC_OFF_NUS        0x01  /* Nordic UART service      */
+#define BT_SVC_OFF_SENSBOX    0x02  /* SensBox service          */
+#define BT_SVC_OFF_MIDI       0x04  /* MIDI over Bluetooth LE   */
+#define BT_SVC_OFF_MASK       (BT_SVC_OFF_NUS | BT_SVC_OFF_SENSBOX | BT_SVC_OFF_MIDI)
+
+/* GNSS fix indication on a status LED ("led_gnss") */
+enum
+{
+	LED_GNSS_NONE,      /* legacy behaviour */
+	LED_GNSS_NOFIX_RED, /* short red flash every 2 seconds while there is no fix */
+	LED_GNSS_COUNT
+};
+
 enum
 {
 	EEPROM_EXT_LOAD,
@@ -80,8 +99,8 @@ typedef struct Settings {
     uint8_t  power_save;
 
     int8_t   freq_corr; /* +/-, kHz */
-    uint8_t  resvd2;
-    uint8_t  resvd3;
+    uint8_t  bt_svc_off; /* BT_SVC_OFF_* bits, 0 = all services enabled */
+    uint8_t  led_gnss;   /* LED_GNSS_*, 0 = no GNSS fix indication      */
     uint8_t  resvd4;
 
     /* Use a key provided by (local) gliding contest organizer */

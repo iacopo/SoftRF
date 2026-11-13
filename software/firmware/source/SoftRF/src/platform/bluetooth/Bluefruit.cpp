@@ -335,6 +335,19 @@ static const uint8_t ODID_Uuid[] = {0x00, 0x00, 0xff, 0xfa, 0x00, 0x00, 0x10, 0x
 
 String BT_name = HOSTNAME;
 
+/* true when the optional BLE service is not disabled by settings->bt_svc_off */
+#define BT_SVC_ON(bit)  ((settings->bt_svc_off & (bit)) == 0)
+
+#if !defined(EXCLUDE_NUS)
+static bool nus_enabled = true;
+#endif /* EXCLUDE_NUS */
+#if defined(ARDUINO_ARCH_NRF52)
+static bool sensbox_enabled = true;
+#endif /* ARDUINO_ARCH_NRF52 */
+#if defined(USE_BLE_MIDI)
+bool        BLE_MIDI_enabled = true;
+#endif /* USE_BLE_MIDI */
+
 #define UUID16_COMPANY_ID_NORDIC 0x0059
 
 static uint8_t BeaconUuid[16] =
@@ -380,16 +393,17 @@ void startAdv(void)
     } else
 #endif /* ENABLE_REMOTE_ID */
 #if defined(USE_BLE_MIDI)
-    if (settings->volume != BUZZER_OFF) {
+    if (settings->volume != BUZZER_OFF && BLE_MIDI_enabled) {
       Bluefruit.Advertising.addService(blemidi, bleuart_HM10);
     } else
 #endif /* USE_BLE_MIDI */
-    {
-      Bluefruit.Advertising.addService(
 #if !defined(EXCLUDE_NUS)
-                                       bleuart_NUS,
+    if (nus_enabled) {
+      Bluefruit.Advertising.addService(bleuart_NUS, bleuart_HM10);
+    } else
 #endif /* EXCLUDE_NUS */
-                                       bleuart_HM10);
+    {
+      Bluefruit.Advertising.addService(bleuart_HM10);
     }
   }
 
@@ -495,8 +509,11 @@ void nRF5x_Bluetooth_setup()
   // Configure and Start BLE Uart Service
   bleuart_HM10.begin();
 #if !defined(EXCLUDE_NUS)
-  bleuart_NUS.begin();
-  bleuart_NUS.bufferTXD(true);
+  nus_enabled = BT_SVC_ON(BT_SVC_OFF_NUS);
+  if (nus_enabled) {
+    bleuart_NUS.begin();
+    bleuart_NUS.bufferTXD(true);
+  }
 #endif /* EXCLUDE_NUS */
 
   // Start BLE Battery Service
@@ -512,13 +529,19 @@ void nRF5x_Bluetooth_setup()
 
 #if defined(ARDUINO_ARCH_NRF52)
   // Start SensBox Service
-  blesens.begin();
+  sensbox_enabled = BT_SVC_ON(BT_SVC_OFF_SENSBOX);
+  if (sensbox_enabled) {
+    blesens.begin();
+  }
 #endif /* ARDUINO_ARCH_NRF52 */
 
 #if defined(USE_BLE_MIDI)
-  // Initialize MIDI with no any input channels
-  // This will also call blemidi service's begin()
-  MIDI_BLE.begin(MIDI_CHANNEL_OFF);
+  BLE_MIDI_enabled = BT_SVC_ON(BT_SVC_OFF_MIDI);
+  if (BLE_MIDI_enabled) {
+    // Initialize MIDI with no any input channels
+    // This will also call blemidi service's begin()
+    MIDI_BLE.begin(MIDI_CHANNEL_OFF);
+  }
 #endif /* USE_BLE_MIDI */
 
   // Set up and start advertising
@@ -569,7 +592,7 @@ static void nRF5x_Bluetooth_loop()
   }
 
 #if defined(ARDUINO_ARCH_NRF52)
-  if (Bluefruit.connected() && isTimeToSensBox()) {
+  if (sensbox_enabled && Bluefruit.connected() && isTimeToSensBox()) {
     uint8_t sens_status = isValidFix() ? GNSS_STATUS_3D_MOVING : GNSS_STATUS_NONE;
     blesens.notify_nav (sens_status);
     blesens.notify_move(sens_status);
@@ -606,7 +629,7 @@ static void nRF5x_Bluetooth_fini()
     }
 
 #if !defined(EXCLUDE_NUS)
-    if ( bleuart_NUS.notifyEnabled() ) {
+    if ( nus_enabled && bleuart_NUS.notifyEnabled() ) {
       // flush TXD since we use bufferTXD()
       bleuart_NUS.flushTXD();
     }
@@ -636,7 +659,7 @@ static int nRF5x_Bluetooth_available()
   }
 
 #if !defined(EXCLUDE_NUS)
-  if ( bleuart_NUS.notifyEnabled() ) {
+  if ( nus_enabled && bleuart_NUS.notifyEnabled() ) {
     rval = bleuart_NUS.available();
   }
 #endif /* EXCLUDE_NUS */
@@ -658,7 +681,7 @@ static int nRF5x_Bluetooth_read()
   }
 
 #if !defined(EXCLUDE_NUS)
-  if ( bleuart_NUS.notifyEnabled() ) {
+  if ( nus_enabled && bleuart_NUS.notifyEnabled() ) {
     rval = bleuart_NUS.read();
   }
 #endif /* EXCLUDE_NUS */
@@ -680,7 +703,7 @@ static size_t nRF5x_Bluetooth_write(const uint8_t *buffer, size_t size)
   }
 
 #if !defined(EXCLUDE_NUS)
-  if ( bleuart_NUS.notifyEnabled() && size > 0) {
+  if ( nus_enabled && bleuart_NUS.notifyEnabled() && size > 0) {
     rval = bleuart_NUS.write(buffer, size);
   }
 #endif /* EXCLUDE_NUS */
