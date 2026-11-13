@@ -2746,6 +2746,25 @@ static void nRF52_post_init()
 static unsigned long GNSS_LED_TimeMarker = 0;
 static bool          GNSS_LED_is_on      = false;
 
+static void nRF52_GNSS_LED_set(bool on)
+{
+  digitalWrite(SOC_GPIO_LED_USBMSC, on ? LED_STATE_ON : 1-LED_STATE_ON);
+
+  /*
+   * On boards with a single RGB LED (e.g. Seeed X1) red and green mix
+   * into yellow, so the green "power" indication is paused while flashing.
+   * LED_loop() turns the green LED back on once the override is released.
+   */
+  if (SOC_GPIO_PIN_STATUS != SOC_UNUSED_PIN) {
+    if (on) {
+      digitalWrite(SOC_GPIO_PIN_STATUS, 1-LED_STATE_ON);
+    }
+    LED_status_override = on;
+  }
+
+  GNSS_LED_is_on = on;
+}
+
 /* Optional indication of "no GNSS fix" by short flashes of the red LED */
 static void nRF52_GNSS_LED_loop()
 {
@@ -2756,17 +2775,14 @@ static void nRF52_GNSS_LED_loop()
 
   if (isValidFix()) {
     if (GNSS_LED_is_on) {
-      digitalWrite(SOC_GPIO_LED_USBMSC, 1-LED_STATE_ON);
-      GNSS_LED_is_on = false;
+      nRF52_GNSS_LED_set(false);
     }
   } else if (GNSS_LED_is_on) {
     if (millis() - GNSS_LED_TimeMarker > GNSS_LED_FLASH_MS) {
-      digitalWrite(SOC_GPIO_LED_USBMSC, 1-LED_STATE_ON);
-      GNSS_LED_is_on = false;
+      nRF52_GNSS_LED_set(false);
     }
   } else if (millis() - GNSS_LED_TimeMarker > GNSS_LED_PERIOD_MS) {
-    digitalWrite(SOC_GPIO_LED_USBMSC, LED_STATE_ON);
-    GNSS_LED_is_on      = true;
+    nRF52_GNSS_LED_set(true);
     GNSS_LED_TimeMarker = millis();
   }
 }
@@ -2927,6 +2943,7 @@ static void nRF52_loop()
        nRF52_board     == NRF52_LILYGO_TECHO_CARD ||
        nRF52_board     == NRF52_SEEED_WIO_L1)     &&
       settings->volume != BUZZER_OFF              &&
+      (settings->ext_opts & EXT_SND_OFF_FIX) == 0 &&
       settings->mode   == SOFTRF_MODE_NORMAL      &&
       nRF52_has_vff    == false                   &&
       isValidFix()     == true) {
@@ -3696,7 +3713,8 @@ static void nRF52_Sound_test(int var)
   }
 
 #if defined(USE_PWM_SOUND)
-  if (SOC_GPIO_PIN_BUZZER != SOC_UNUSED_PIN && settings->volume != BUZZER_OFF) {
+  if (SOC_GPIO_PIN_BUZZER != SOC_UNUSED_PIN && settings->volume != BUZZER_OFF &&
+      (settings->ext_opts & EXT_SND_OFF_STARTUP) == 0) {
     tone(SOC_GPIO_PIN_BUZZER, 440,  500); delay(500);
     tone(SOC_GPIO_PIN_BUZZER, 640,  500); delay(500);
     tone(SOC_GPIO_PIN_BUZZER, 840,  500); delay(500);

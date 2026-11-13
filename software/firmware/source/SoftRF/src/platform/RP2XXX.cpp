@@ -194,7 +194,7 @@ eeprom_t eeprom_block = {
     0,
     0, /* bt_svc_off */
     0, /* led_gnss */
-    0, /* resvd4 */
+    0, /* ext_opts */
 
     { 0, 0, 0, 0 },
   },

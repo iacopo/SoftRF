@@ -85,4 +85,7 @@ void LED_DisplayTraffic();
 void LED_Clear();
 void LED_loop();
 
+/* true while platform code temporarily owns the status LED (e.g. GNSS fix flash) */
+extern bool LED_status_override;
+
 #endif /* LEDHELPER_H */

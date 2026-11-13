@@ -79,7 +79,7 @@ void EEPROM_setup()
   }
 
   /*
-   * bt_svc_off and led_gnss occupy bytes that used to be reserved.
+   * bt_svc_off, led_gnss and ext_opts occupy bytes that used to be reserved.
    * Settings saved by earlier firmware may hold erased flash (0xFF) there,
    * so any out-of-range value falls back to the legacy behaviour.
    */
@@ -88,6 +88,9 @@ void EEPROM_setup()
   }
   if (eeprom_block.field.settings.led_gnss >= LED_GNSS_COUNT) {
     eeprom_block.field.settings.led_gnss = LED_GNSS_NONE;
+  }
+  if (eeprom_block.field.settings.ext_opts & ~EXT_OPTS_MASK) {
+    eeprom_block.field.settings.ext_opts = 0;
   }
 
   settings = &eeprom_block.field.settings;
@@ -219,7 +222,7 @@ void EEPROM_defaults()
   eeprom_block.field.settings.freq_corr  = 0;
   eeprom_block.field.settings.bt_svc_off = 0;
   eeprom_block.field.settings.led_gnss   = LED_GNSS_NONE;
-  eeprom_block.field.settings.resvd4     = 0;
+  eeprom_block.field.settings.ext_opts   = 0;
   eeprom_block.field.settings.igc_key[0] = 0;
   eeprom_block.field.settings.igc_key[1] = 0;
   eeprom_block.field.settings.igc_key[2] = 0;

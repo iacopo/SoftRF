@@ -32,6 +32,8 @@ static uint32_t prev_rx_packets_counter = 0;
 static int status_LED = SOC_UNUSED_PIN;
 static unsigned long status_LED_TimeMarker = 0;
 
+bool LED_status_override = false;
+
 // IMPORTANT: To reduce NeoPixel burnout risk, add 1000 uF capacitor across
 // pixel power leads, add 300 - 500 Ohm resistor on first pixel's data input
 // and minimize distance between Arduino and first pixel.  Avoid connecting
@@ -203,7 +205,7 @@ void LED_DisplayTraffic() {
 
 void LED_loop() {
 #if !defined(EXCLUDE_STATUS_LED)
-  if (status_LED != SOC_UNUSED_PIN) {
+  if (status_LED != SOC_UNUSED_PIN && !LED_status_override) {
     if (Battery_voltage() > Battery_threshold() ) {
       /* Indicate positive power supply */
       if (digitalRead(status_LED) != LED_STATE_ON) {
