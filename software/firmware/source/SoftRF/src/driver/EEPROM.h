@@ -68,7 +68,7 @@ enum
  * Default value 0 keeps the legacy behaviour.
  */
 #define EXT_SND_OFF_TRAFFIC   0x01  /* no beep when a new traffic is received */
-#define EXT_SND_OFF_STARTUP   0x02  /* no power-on tones                      */
+#define EXT_SND_OFF_STARTUP   0x02  /* no power-on / power-off tones          */
 #define EXT_SND_OFF_FIX       0x04  /* no melody on very first GNSS fix       */
 #define EXT_SND_OFF_MASK      (EXT_SND_OFF_TRAFFIC | EXT_SND_OFF_STARTUP | EXT_SND_OFF_FIX)
 #define EXT_NMEA_ID_PLAIN     0x08  /* $PFLAA: no "!callsign" substitute      */

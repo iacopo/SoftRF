@@ -922,7 +922,7 @@ void NMEA_Process_SRF_SKV_Sentences()
        *                1 = Nordic UART, 2 = SensBox, 4 = MIDI (0 = all on)
        *   led_gnss   : 0 = no indication, 1 = red flash while no GNSS fix
        *   snd_off    : bit mask of buzzer events to mute,
-       *                1 = new traffic beep, 2 = power-on tones,
+       *                1 = new traffic beep, 2 = power-on/off tones,
        *                4 = first GNSS fix melody (0 = all on)
        *   nmea_id    : 0 = $PFLAA ID with callsign substitute ("ID!FLR_ID"),
        *                1 = plain ID unless a real callsign is known

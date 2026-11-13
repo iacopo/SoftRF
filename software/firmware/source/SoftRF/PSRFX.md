@@ -28,7 +28,7 @@ current value.
 |--------------|--------|---------|
 | `bt_svc_off` | bit mask | Bluetooth LE services to leave out: `1` Nordic UART, `2` SensBox, `4` MIDI. The HM-10 serial service (FFE0/FFE1) is always present. |
 | `led_gnss`   | `0`, `1` | `1`: short red LED flash every 2 s while there is no GNSS fix. The green status LED is paused during the flash so a single RGB LED shows pure red. |
-| `snd_off`    | bit mask | Buzzer events to mute: `1` new traffic beep, `2` power-on tones, `4` first GNSS fix melody. Traffic alarms keep following `volume`. |
+| `snd_off`    | bit mask | Buzzer events to mute: `1` new traffic beep, `2` power-on and power-off tones, `4` first GNSS fix melody. Traffic alarms keep following `volume`. |
 | `nmea_id`    | `0`, `1` | `0`: `$PFLAA` ID field carries a callsign or a substitute (`200979!FLR_200979`). `1`: plain ID (`200979`) unless a real callsign is known (ADS-B flight number). |
 
 ## Why
