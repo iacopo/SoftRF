@@ -27,6 +27,7 @@
 #include "../../driver/Battery.h"
 #include "../../driver/Baro.h"
 #include "../../TrafficHelper.h"
+#include "../radio/FANET.h"
 
 #define ADDR_TO_HEX_STR(s, c) (s += String((c) < 0x10 ? "0" : "") + String((c), HEX))
 
@@ -95,6 +96,14 @@ TinyGPSCustom X_LED_GNSS;
 TinyGPSCustom X_Snd_Off;
 TinyGPSCustom X_NMEA_ID;
 TinyGPSCustom X_LED_Proto; /* 6 */
+
+#if defined(ARDUINO_ARCH_NRF52) && !defined(ARDUINO_ARCH_MBED) && !defined(ARDUINO_ARCH_ZEPHYR)
+#define USE_PILOT_NAME_CFG
+/* Pilot name sent in FANET "Name" frames */
+TinyGPSCustom N_Version;   /* 1 */
+TinyGPSCustom N_Name;      /* 2 */
+extern void nRF52_PilotName_store(void);
+#endif
 
 #if defined(USE_OGN_ENCRYPTION)
 /* Security and privacy */
@@ -186,6 +195,14 @@ void NMEA_setup()
   X_Snd_Off.begin      (gnss, psrf_x, term_num++);
   X_NMEA_ID.begin      (gnss, psrf_x, term_num++);
   X_LED_Proto.begin    (gnss, psrf_x, term_num  ); /* 6 */
+
+#if defined(USE_PILOT_NAME_CFG)
+  const char *psrf_n = "PSRFN";
+  term_num = 1;
+
+  N_Version.begin      (gnss, psrf_n, term_num++); /* 1 */
+  N_Name.begin         (gnss, psrf_n, term_num  ); /* 2 */
+#endif /* USE_PILOT_NAME_CFG */
 
 #if defined(USE_OGN_ENCRYPTION)
 /* Security and privacy */
@@ -1002,6 +1019,47 @@ void NMEA_Process_SRF_SKV_Sentences()
           }
         }
       }
+
+#if defined(USE_PILOT_NAME_CFG)
+      /*
+       * $PSRFN,?          - query
+       * $PSRFN,1,<name>   - set the pilot name sent in FANET "Name" frames
+       * $PSRFN,1,         - clear it (no Name frames, legacy behaviour)
+       * Up to FANET_NAME_MAX_LEN printable ASCII characters except , * $
+       * Like $PSRFC, the name is stored with Bluetooth (SoftDevice) off and
+       * the device restarts: flash writes are not allowed while it runs.
+       */
+      if (N_Version.isUpdated()) {
+        if (strncmp(N_Version.value(), "?", 1) == 0) {
+          char psrfn_buf[16 + FANET_NAME_MAX_LEN];
+
+          snprintf_P(psrfn_buf, sizeof(psrfn_buf),
+              PSTR("$PSRFN,%d,%s*"), PSRFN_VERSION, FANET_PilotName);
+
+          NMEA_add_checksum(psrfn_buf, sizeof(psrfn_buf) - strlen(psrfn_buf));
+
+          NMEA_Out(C_NMEA_Source, (byte *) psrfn_buf, strlen(psrfn_buf), false);
+
+        } else if (atoi(N_Version.value()) == PSRFN_VERSION && N_Name.isUpdated()) {
+          const char *src = N_Name.value();
+          int n = 0;
+
+          memset(FANET_PilotName, 0, sizeof(FANET_PilotName));
+          for (int i = 0; src[i] != 0 && n < FANET_NAME_MAX_LEN; i++) {
+            char c = src[i];
+            if (c >= 0x20 && c <= 0x7E && c != ',' && c != '*' && c != '$') {
+              FANET_PilotName[n++] = c;
+            }
+          }
+          Serial.print(F("PilotName = ")); Serial.println(FANET_PilotName);
+
+          SoC->WDT_fini();
+          if (SoC->Bluetooth_ops) { SoC->Bluetooth_ops->fini(); }
+          nRF52_PilotName_store();
+          nmea_cfg_restart();
+        }
+      }
+#endif /* USE_PILOT_NAME_CFG */
 
 #if defined(USE_OGN_ENCRYPTION)
       if (S_Version.isUpdated()) {

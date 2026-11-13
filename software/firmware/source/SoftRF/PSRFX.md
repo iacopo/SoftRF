@@ -70,3 +70,20 @@ no beep below 25 %, one beep 25–50 %, two beeps 50–75 %, three above 75 %.
 The charge estimate is the nRF52 `Battery_param(BATTERY_PARAM_CHARGE)`
 value. The beeps are muted together with the power-on tones.
 
+
+## `$PSRFN` – FANET pilot name (nRF52)
+
+```
+$PSRFN,?*<cs>             query, answers $PSRFN,1,<name>
+$PSRFN,1,<name>*<cs>      set (stored, then the device restarts like with $PSRFC)
+$PSRFN,1,*<cs>            clear
+```
+
+When a name is set, in FANET mode one tracking frame is replaced by a FANET
+"Name" frame (type 2: standard header followed by the name, no terminator)
+right after the first fix and then every 4 minutes, as recommended by the
+FANET protocol. Up to 20 printable ASCII characters, without `,` `*` `$`.
+No name (the default, and the state after an upgrade) means no Name frames.
+
+The name is stored on nRF52 right after the UI settings, behind a 4-byte
+magic, so it does not change `settings_t` or the EEPROM version.

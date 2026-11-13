@@ -303,9 +303,43 @@ bool fanet_decode(void *fanet_pkt, ufo_t *this_aircraft, ufo_t *fop) {
   return rval;
 }
 
+/* Optional pilot name, sent in FANET "Name" frames. Empty = never sent. */
+char FANET_PilotName[FANET_NAME_MAX_LEN + 1] = "";
+
+static unsigned long FANET_Name_TimeMarker = 0;
+static bool          FANET_Name_Sent       = false;
+
 size_t fanet_encode(void *fanet_pkt, ufo_t *this_aircraft) {
 
   uint32_t id = this_aircraft->addr;
+
+  /*
+   * Once in a while one tracking frame is replaced by a Name frame:
+   * first one right after the first fix, then every FANET_NAME_INTERVAL.
+   */
+  if (FANET_PilotName[0] != 0 &&
+      (!FANET_Name_Sent || millis() - FANET_Name_TimeMarker > FANET_NAME_INTERVAL)) {
+
+    fanet_packet_t *hdr = (fanet_packet_t *) fanet_pkt;
+    size_t len = strnlen(FANET_PilotName, FANET_NAME_MAX_LEN);
+
+    if (len > MAX_PKT_SIZE - FANET_HEADER_SIZE) {
+      len = MAX_PKT_SIZE - FANET_HEADER_SIZE;
+    }
+
+    hdr->ext_header = 0;
+    hdr->forward    = 0;
+    hdr->type       = FANET_TYPE_NAME;
+    hdr->vendor     = SOFRF_FANET_VENDOR_ID;
+    hdr->address    = id & 0xFFFF;
+
+    memcpy((uint8_t *) fanet_pkt + FANET_HEADER_SIZE, FANET_PilotName, len);
+
+    FANET_Name_Sent       = true;
+    FANET_Name_TimeMarker = millis();
+
+    return FANET_HEADER_SIZE + len;
+  }
   float lat = this_aircraft->latitude;
   float lon = this_aircraft->longitude;
   int16_t alt = (int16_t) this_aircraft->altitude;

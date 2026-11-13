@@ -64,6 +64,7 @@
 
 #if defined(ENABLE_REMOTE_ID)
 #include "../protocol/radio/RemoteID.h"
+#include "../protocol/radio/FANET.h"
 #endif /* ENABLE_REMOTE_ID */
 
 #if defined(USE_TFT)
@@ -3710,6 +3711,57 @@ static bool nRF52_EEPROM_begin(size_t size)
   return true;
 }
 
+/*
+ * Pilot name for FANET "Name" frames, stored right after the UI settings:
+ * 4 bytes of magic followed by FANET_NAME_MAX_LEN + 1 characters.
+ * No magic (e.g. erased flash) means no name, i.e. legacy behaviour.
+ */
+#define PILOT_NAME_MAGIC   0x454D414E /* "NAME" */
+#define PILOT_NAME_OFFSET  (sizeof(eeprom_t) + sizeof(ui_settings_t))
+
+static void nRF52_PilotName_load()
+{
+  memset(FANET_PilotName, 0, sizeof(FANET_PilotName));
+#if !defined(EXCLUDE_EEPROM)
+  if (PILOT_NAME_OFFSET + 4 + sizeof(FANET_PilotName) > EEPROM.length()) {
+    return;
+  }
+
+  uint32_t magic = 0;
+  for (int i = 0; i < 4; i++) {
+    magic |= ((uint32_t) EEPROM.read(PILOT_NAME_OFFSET + i)) << (8 * i);
+  }
+  if (magic != PILOT_NAME_MAGIC) {
+    return;
+  }
+
+  for (int i = 0; i < FANET_NAME_MAX_LEN; i++) {
+    char c = (char) EEPROM.read(PILOT_NAME_OFFSET + 4 + i);
+    if (c < 0x20 || c > 0x7E || c == ',' || c == '*' || c == '$') {
+      break;
+    }
+    FANET_PilotName[i] = c;
+  }
+#endif /* EXCLUDE_EEPROM */
+}
+
+void nRF52_PilotName_store()
+{
+#if !defined(EXCLUDE_EEPROM)
+  if (PILOT_NAME_OFFSET + 4 + sizeof(FANET_PilotName) > EEPROM.length()) {
+    return;
+  }
+
+  for (int i = 0; i < 4; i++) {
+    EEPROM.write(PILOT_NAME_OFFSET + i, (PILOT_NAME_MAGIC >> (8 * i)) & 0xFF);
+  }
+  for (int i = 0; i < sizeof(FANET_PilotName); i++) {
+    EEPROM.write(PILOT_NAME_OFFSET + 4 + i, (uint8_t) FANET_PilotName[i]);
+  }
+  EEPROM_commit();
+#endif /* EXCLUDE_EEPROM */
+}
+
 static void nRF52_EEPROM_extension(int cmd)
 {
   uint8_t *raw = (uint8_t *) ui;
@@ -3900,6 +3952,8 @@ static void nRF52_EEPROM_extension(int cmd)
 #endif /* USE_TINYUSB */
       break;
   }
+
+  nRF52_PilotName_load();
 }
 
 static void nRF52_SPI_begin()

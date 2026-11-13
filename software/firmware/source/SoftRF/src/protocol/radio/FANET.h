@@ -105,6 +105,16 @@ typedef struct {
 
 #define FANET_AIR_TIME        36   /* in ms */
 
+/*
+ * Name frame type (#2): standard header followed by the pilot name,
+ * an 8-bit string without terminator. Recommended interval: every 4 min.
+ */
+#define FANET_TYPE_NAME       2
+#define FANET_NAME_MAX_LEN    20
+#define FANET_NAME_INTERVAL   240000 /* in ms */
+
+extern char FANET_PilotName[FANET_NAME_MAX_LEN + 1];
+
 #define FANET_TX_INTERVAL_MIN 2500 /* in ms */
 #define FANET_TX_INTERVAL_MAX 3500
 
