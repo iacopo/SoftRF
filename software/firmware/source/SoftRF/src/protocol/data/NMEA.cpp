@@ -93,7 +93,8 @@ TinyGPSCustom X_Version;   /* 1 */
 TinyGPSCustom X_BT_SVC_Off;
 TinyGPSCustom X_LED_GNSS;
 TinyGPSCustom X_Snd_Off;
-TinyGPSCustom X_NMEA_ID;   /* 5 */
+TinyGPSCustom X_NMEA_ID;
+TinyGPSCustom X_LED_Proto; /* 6 */
 
 #if defined(USE_OGN_ENCRYPTION)
 /* Security and privacy */
@@ -183,7 +184,8 @@ void NMEA_setup()
   X_BT_SVC_Off.begin   (gnss, psrf_x, term_num++);
   X_LED_GNSS.begin     (gnss, psrf_x, term_num++);
   X_Snd_Off.begin      (gnss, psrf_x, term_num++);
-  X_NMEA_ID.begin      (gnss, psrf_x, term_num  ); /* 5 */
+  X_NMEA_ID.begin      (gnss, psrf_x, term_num++);
+  X_LED_Proto.begin    (gnss, psrf_x, term_num  ); /* 6 */
 
 #if defined(USE_OGN_ENCRYPTION)
 /* Security and privacy */
@@ -917,7 +919,7 @@ void NMEA_Process_SRF_SKV_Sentences()
 
       /*
        * $PSRFX,?                                            - query
-       * $PSRFX,1,<bt_svc_off>,<led_gnss>[,<snd_off>[,<nmea_id>]] - set
+       * $PSRFX,1,<bt_svc_off>,<led_gnss>[,<snd_off>[,<nmea_id>[,<led_proto>]]] - set
        *   bt_svc_off : bit mask of BLE services to disable,
        *                1 = Nordic UART, 2 = SensBox, 4 = MIDI (0 = all on)
        *   led_gnss   : 0 = no indication, 1 = red flash while no GNSS fix
@@ -926,6 +928,8 @@ void NMEA_Process_SRF_SKV_Sentences()
        *                4 = first GNSS fix melody (0 = all on)
        *   nmea_id    : 0 = $PFLAA ID with callsign substitute ("ID!FLR_ID"),
        *                1 = plain ID unless a real callsign is known
+       *   led_proto  : 1 = status LED colour shows the radio protocol
+       *                (green FANET, blue FLARM, cyan others)
        * Empty or missing fields keep their current values.
        */
       if (X_Version.isUpdated()) {
@@ -933,10 +937,11 @@ void NMEA_Process_SRF_SKV_Sentences()
           char psrfx_buf[MAX_PSRFX_LEN];
 
           snprintf_P(psrfx_buf, sizeof(psrfx_buf),
-              PSTR("$PSRFX,%d,%d,%d,%d,%d*"),
+              PSTR("$PSRFX,%d,%d,%d,%d,%d,%d*"),
               PSRFX_VERSION, settings->bt_svc_off, settings->led_gnss,
               settings->ext_opts & EXT_SND_OFF_MASK,
-              settings->ext_opts & EXT_NMEA_ID_PLAIN ? 1 : 0);
+              settings->ext_opts & EXT_NMEA_ID_PLAIN ? 1 : 0,
+              settings->ext_opts & EXT_LED_PROTOCOL  ? 1 : 0);
 
           NMEA_add_checksum(psrfx_buf, sizeof(psrfx_buf) - strlen(psrfx_buf));
 
@@ -975,6 +980,17 @@ void NMEA_Process_SRF_SKV_Sentences()
             }
             Serial.print(F("NMEA_ID = "));
             Serial.println(settings->ext_opts & EXT_NMEA_ID_PLAIN ? 1 : 0);
+            cfg_is_updated = true;
+          }
+          if (X_LED_Proto.isUpdated() && strlen(X_LED_Proto.value()) > 0)
+          {
+            if (atoi(X_LED_Proto.value()) == 1) {
+              settings->ext_opts |=  EXT_LED_PROTOCOL;
+            } else {
+              settings->ext_opts &= ~EXT_LED_PROTOCOL;
+            }
+            Serial.print(F("LED_Proto = "));
+            Serial.println(settings->ext_opts & EXT_LED_PROTOCOL ? 1 : 0);
             cfg_is_updated = true;
           }
 

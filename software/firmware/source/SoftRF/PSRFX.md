@@ -17,10 +17,10 @@ Like `$PSRFC`, applying new values stores them and restarts the device.
 
 ```
 $PSRFX,?*<cs>                                              query
-$PSRFX,1,<bt_svc_off>,<led_gnss>[,<snd_off>[,<nmea_id>]]*<cs>  set
+$PSRFX,1,<bt_svc_off>,<led_gnss>[,<snd_off>[,<nmea_id>[,<led_proto>]]]*<cs>  set
 ```
 
-The query answers with `$PSRFX,1,<bt_svc_off>,<led_gnss>,<snd_off>,<nmea_id>`.
+The query answers with `$PSRFX,1,<bt_svc_off>,<led_gnss>,<snd_off>,<nmea_id>,<led_proto>`.
 When setting, trailing fields may be omitted and empty fields keep their
 current value.
 
@@ -30,6 +30,7 @@ current value.
 | `led_gnss`   | `0`, `1` | `1`: short red LED flash every 2 s while there is no GNSS fix. The green status LED is paused during the flash so a single RGB LED shows pure red. |
 | `snd_off`    | bit mask | Buzzer events to mute: `1` new traffic beep, `2` power-on and power-off tones, `4` first GNSS fix melody. Traffic alarms keep following `volume`. |
 | `nmea_id`    | `0`, `1` | `0`: `$PFLAA` ID field carries a callsign or a substitute (`200979!FLR_200979`). `1`: plain ID (`200979`) unless a real callsign is known (ADS-B flight number). |
+| `led_proto`  | `0`, `1` | `1`: on boards with an RGB status LED the power colour tells the radio protocol: green FANET, blue FLARM, cyan any other. The blue LED then no longer shows Bluetooth status. Single colours keep the LED current unchanged. |
 
 ## Why
 
@@ -42,6 +43,8 @@ current value.
   removes MIDI while the buzzer keeps working.
 * In crowded competitions the "new traffic" beep fires very often;
   `snd_off` bit `1` mutes only that event.
+* With the device out of sight in the harness pocket a glance before
+  take-off tells the protocol: `led_proto = 1`.
 * Apps that do not understand the `!callsign` suffix show
   `FLR200979!FLR_200979`; `nmea_id = 1` gives `FLR200979`, the same as a
   FLARM device.

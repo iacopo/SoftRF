@@ -581,7 +581,8 @@ static void nRF5x_Bluetooth_loop()
   /* LED_status_override: the LED is briefly taken over (GNSS fix flash) */
   if (SOC_GPIO_LED_BLE != SOC_UNUSED_PIN &&
       SOC_GPIO_LED_BLE != LED_BLUE       &&
-      !LED_status_override) {
+      !LED_status_override               &&
+      !LED_status_owns_ble) {
     if (Bluefruit.connected()) {
       digitalWrite(SOC_GPIO_LED_BLE, LED_STATE_ON);
     } else if (Bluefruit.Advertising.isRunning()) {
