@@ -440,6 +440,7 @@ const T = {
     lost: "Collegamento perso.",
     fw: "firmware", fwExt: "con opzioni extra", fwStd: "standard",
     gpsFix: "GPS ok", gpsNo: "Cerco GPS…", tx: "Trasmette", txNo: "Non trasmette",
+    battUsb: "in carica",
     traffic: n => n + (n === 1 ? " velivolo" : " velivoli"),
     custom: "Personalizzato"
   },
@@ -501,6 +502,7 @@ const T = {
     lost: "Connection lost.",
     fw: "firmware", fwExt: "with extra options", fwStd: "standard",
     gpsFix: "GPS ok", gpsNo: "Looking for GPS…", tx: "Transmitting", txNo: "Not transmitting",
+    battUsb: "charging",
     traffic: n => n + (n === 1 ? " aircraft" : " aircraft"),
     custom: "Custom"
   }
@@ -567,6 +569,16 @@ let edit = null;      // values being edited
 let hasExt = false;
 let hasLedProto = false;   // firmware knows the 6th $PSRFX field
 let live = { fix: null, tx: null, rx: 0 };
+let batt = null;          // volts, from $PSRFH (null = unknown)
+
+/* Same estimate as the SoftRF firmware (nRF52 Battery_param), used for the
+   power-on battery beeps, so that page and beeps always agree */
+function battPercent(v) {
+  if (v < 3.2) return 0;
+  if (v > 4.2) return 100;
+  if (v < 3.6) return Math.max(0, Math.round((v - 3.3) * 100 / 3));
+  return Math.min(100, Math.round(10 + (v - 3.6) * 150));
+}
 let saving = false;
 
 function onLine(line) {
@@ -576,6 +588,10 @@ function onLine(line) {
   if (f[0] === "PFLAU") {
     live = { rx: parseInt(f[1]) || 0, tx: f[2] === "1", fix: parseInt(f[3]) || 0 };
     renderStatus();
+  }
+  if (f[0] === "PSRFH" && f.length >= 6) {
+    const v = parseInt(f[5]) / 100;
+    if (v > 2 && v < 6) { batt = v; renderStatus(); }
   }
   waiters = waiters.filter(w => {
     if (f[0] === w.name && f[1] !== "?") { w.resolve(f); return false; }
@@ -761,6 +777,12 @@ function renderStatus() {
     pills.push(live.fix > 0 ? `<span class="pill ok">${t("gpsFix")}</span>` : `<span class="pill warn">${t("gpsNo")}</span>`);
     pills.push(live.tx ? `<span class="pill ok">${t("tx")}</span>` : `<span class="pill">${t("txNo")}</span>`);
     pills.push(`<span class="pill">${t("traffic")(live.rx)}</span>`);
+  }
+  if (batt !== null) {
+    const pc = battPercent(batt);
+    const cls = batt >= 3.7 ? "ok" : batt >= 3.5 ? "warn" : "bad";
+    const txt = batt > 4.25 ? t("battUsb") : `${pc}%`;
+    pills.unshift(`<span class="pill ${batt > 4.25 ? "ok" : cls}">🔋 ${txt} · ${batt.toFixed(2).replace(".", lang === "it" ? "," : ".")} V</span>`);
   }
   s.innerHTML = pills.join("");
   document.getElementById("devSub").textContent =
