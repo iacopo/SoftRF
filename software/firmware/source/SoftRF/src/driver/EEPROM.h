@@ -72,7 +72,8 @@ enum
 #define EXT_SND_OFF_FIX       0x04  /* no melody on very first GNSS fix       */
 #define EXT_SND_OFF_MASK      (EXT_SND_OFF_TRAFFIC | EXT_SND_OFF_STARTUP | EXT_SND_OFF_FIX)
 #define EXT_NMEA_ID_PLAIN     0x08  /* $PFLAA: no "!callsign" substitute      */
-#define EXT_OPTS_MASK         (EXT_SND_OFF_MASK | EXT_NMEA_ID_PLAIN)
+#define EXT_LED_PROTOCOL      0x10  /* status LED colour tells radio protocol */
+#define EXT_OPTS_MASK         (EXT_SND_OFF_MASK | EXT_NMEA_ID_PLAIN | EXT_LED_PROTOCOL)
 
 enum
 {

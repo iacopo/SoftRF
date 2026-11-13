@@ -87,5 +87,7 @@ void LED_loop();
 
 /* true while platform code temporarily owns the status LED (e.g. GNSS fix flash) */
 extern bool LED_status_override;
+/* true when the Bluetooth LED is used as part of the status colour (EXT_LED_PROTOCOL) */
+extern bool LED_status_owns_ble;
 
 #endif /* LEDHELPER_H */

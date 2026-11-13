@@ -23,6 +23,7 @@
 #include "LED.h"
 #include "Battery.h"
 #include "../TrafficHelper.h"
+#include "RF.h"
 
 extern uint32_t tx_packets_counter, rx_packets_counter;
 static uint32_t prev_tx_packets_counter = 0;
@@ -30,9 +31,11 @@ static uint32_t prev_rx_packets_counter = 0;
 
 #define isTimeToToggle() (millis() - status_LED_TimeMarker > 300)
 static int status_LED = SOC_UNUSED_PIN;
+static int status_LED2 = SOC_UNUSED_PIN; /* second colour, follows status_LED */
 static unsigned long status_LED_TimeMarker = 0;
 
 bool LED_status_override = false;
+bool LED_status_owns_ble = false;
 
 // IMPORTANT: To reduce NeoPixel burnout risk, add 1000 uF capacitor across
 // pixel power leads, add 300 - 500 Ohm resistor on first pixel's data input
@@ -50,10 +53,46 @@ void LED_setup() {
 #if !defined(EXCLUDE_STATUS_LED)
   status_LED = SOC_GPIO_PIN_STATUS;
 
+#if defined(SOC_GPIO_LED_BLE)
+  /*
+   * Optional: on boards with an RGB status LED the power indication
+   * colour tells the radio protocol - green FANET, blue FLARM ("Legacy"),
+   * cyan any other one. The blue LED then stops showing Bluetooth status.
+   */
+  if ((settings->ext_opts & EXT_LED_PROTOCOL) &&
+      status_LED       != SOC_UNUSED_PIN      &&
+      SOC_GPIO_LED_BLE != SOC_UNUSED_PIN      &&
+      SOC_GPIO_LED_BLE != status_LED) {
+    int green = status_LED;
+    int blue  = SOC_GPIO_LED_BLE;
+
+    pinMode(green, OUTPUT);
+    pinMode(blue,  OUTPUT);
+    digitalWrite(green, 1-LED_STATE_ON);
+    digitalWrite(blue,  1-LED_STATE_ON);
+
+    switch (settings->rf_protocol)
+    {
+    case RF_PROTOCOL_FANET:
+      break;                       /* green */
+    case RF_PROTOCOL_LEGACY:
+      status_LED  = blue;          /* blue  */
+      break;
+    default:
+      status_LED2 = blue;          /* cyan  */
+      break;
+    }
+    LED_status_owns_ble = true;
+  }
+#endif /* SOC_GPIO_LED_BLE */
+
   if (status_LED != SOC_UNUSED_PIN) {
     pinMode(status_LED, OUTPUT);
     /* Indicate positive power supply */
     digitalWrite(status_LED, LED_STATE_ON);
+  }
+  if (status_LED2 != SOC_UNUSED_PIN) {
+    digitalWrite(status_LED2, LED_STATE_ON);
   }
 #endif /* EXCLUDE_STATUS_LED */
 }
@@ -216,6 +255,10 @@ void LED_loop() {
         digitalWrite(status_LED, !digitalRead(status_LED) ? HIGH : LOW);  // toggle state
         status_LED_TimeMarker = millis();
       }
+    }
+    if (status_LED2 != SOC_UNUSED_PIN &&
+        digitalRead(status_LED2) != digitalRead(status_LED)) {
+      digitalWrite(status_LED2, digitalRead(status_LED));
     }
   }
 #endif /* EXCLUDE_STATUS_LED */
