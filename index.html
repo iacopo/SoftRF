@@ -296,6 +296,10 @@ footer a { color: var(--accent); }
         <div class="label"><span data-t="ledFix"></span><small data-t="ledFixSub"></small></div>
         <label class="switch"><input type="checkbox" data-f="x_led"><span></span></label>
       </div>
+      <div class="row ledp">
+        <div class="label"><span data-t="ledProto"></span><small data-t="ledProtoSub"></small></div>
+        <label class="switch"><input type="checkbox" data-f="x_ledp"><span></span></label>
+      </div>
     </div>
     <p class="hint noext hidden" data-t="noExt"></p>
   </section>
@@ -413,6 +417,7 @@ const T = {
     sndStartup: "Suono di accensione e spegnimento", sndStartupSub: "Quattro note quando accendi e quando spegni",
     sndFix: "Melodia del GPS", sndFixSub: "Quando trova i satelliti la prima volta",
     ledFix: "Lampo rosso senza GPS", ledFixSub: "Lampeggia finché non trova i satelliti",
+    ledProto: "Colore in base al protocollo", ledProtoSub: "Verde FANET, blu FLARM, azzurro gli altri (il blu non indica più il Bluetooth)",
     noExt: "Le opzioni per singoli suoni, luce e compatibilità SeeYou richiedono il firmware SoftRF del fork iacopo/SoftRF.",
     secAdv: "Impostazioni avanzate",
     txpower: "Potenza di trasmissione", txpowerSub: "«Spenta» = solo ricezione: nessuno ti vede",
@@ -473,6 +478,7 @@ const T = {
     sndStartup: "Power on/off sound", sndStartupSub: "Four notes when you switch it on and off",
     sndFix: "GPS melody", sndFixSub: "When satellites are found for the first time",
     ledFix: "Red flash without GPS", ledFixSub: "Flashes until satellites are found",
+    ledProto: "Colour shows the protocol", ledProtoSub: "Green FANET, blue FLARM, cyan others (blue no longer shows Bluetooth)",
     noExt: "Per-event sounds, light and SeeYou compatibility need the SoftRF firmware from the iacopo/SoftRF fork.",
     secAdv: "Advanced settings",
     txpower: "Transmit power", txpowerSub: "“Off” = receive only: nobody sees you",
@@ -551,7 +557,7 @@ const sentence = body => `$${body}*${checksum(body)}\r\n`;
 const C_FIELDS = ["ver", "mode", "proto", "band", "acft", "alarm", "tx", "vol", "pointer",
                   "nmea_g", "nmea_p", "nmea_l", "nmea_s", "nmea_out", "gdl90", "d1090",
                   "stealth", "notrack", "psave"];
-const X_FIELDS = ["ver", "x_bt", "x_led", "x_snd", "x_id"];
+const X_FIELDS = ["ver", "x_bt", "x_led", "x_snd", "x_id", "x_ledp"];
 
 let device = null, chrRx = null, chrTx = null;
 let lineBuf = "";
@@ -559,6 +565,7 @@ let waiters = [];
 let cur = null;       // values read from the tracker
 let edit = null;      // values being edited
 let hasExt = false;
+let hasLedProto = false;   // firmware knows the 6th $PSRFX field
 let live = { fix: null, tx: null, rx: 0 };
 let saving = false;
 
@@ -659,9 +666,11 @@ async function readAll() {
     const x = await query("PSRFX", 2500, 2);
     X_FIELDS.forEach((k, i) => cur[k] = parseInt(x[i + 1]) || 0);
     hasExt = true;
+    hasLedProto = x.length > 6;
   } catch (e) {
     hasExt = false;
-    Object.assign(cur, { x_bt: 0, x_led: 0, x_snd: 0, x_id: 0 });
+    hasLedProto = false;
+    Object.assign(cur, { x_bt: 0, x_led: 0, x_snd: 0, x_id: 0, x_ledp: 0 });
   }
   edit = { ...cur };
   renderAll();
@@ -685,7 +694,9 @@ const sleep = ms => new Promise(r => setTimeout(r, ms));
 
 /* ------------------------------------------------------------------ save */
 function psrfcBody(v) { return "PSRFC," + C_FIELDS.map(k => k === "ver" ? 1 : v[k]).join(","); }
-function psrfxBody(v) { return `PSRFX,1,${v.x_bt},${v.x_led},${v.x_snd},${v.x_id}`; }
+function psrfxBody(v) {
+  return `PSRFX,1,${v.x_bt},${v.x_led},${v.x_snd},${v.x_id}` + (hasLedProto ? `,${v.x_ledp}` : "");
+}
 
 async function save() {
   const needC = C_FIELDS.some(k => edit[k] !== cur[k]);
@@ -788,6 +799,7 @@ function renderAll() {
   // extra options
   document.querySelectorAll(".ext").forEach(e => e.classList.toggle("hidden", !hasExt));
   document.querySelectorAll(".noext").forEach(e => e.classList.toggle("hidden", hasExt));
+  document.querySelectorAll(".ledp").forEach(e => e.classList.toggle("hidden", !hasLedProto));
   // raw
   document.getElementById("rawC").textContent = "$" + psrfcBody(cur);
   document.getElementById("rawX").textContent = hasExt ? "$" + psrfxBody(cur) : "";
