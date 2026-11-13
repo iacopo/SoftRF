@@ -3620,6 +3620,22 @@ static void nRF52_Sound_test(int var)
     tone(SOC_GPIO_PIN_BUZZER, 840,  500); delay(500);
     tone(SOC_GPIO_PIN_BUZZER, 1040, 500); delay(600);
 
+    /*
+     * Battery level, as many varios do: after a pause, one beep per
+     * quarter of charge above the first one (none below 25%, 3 above 75%)
+     */
+    uint8_t charge = Battery_charge();
+    int     beeps  = charge > 75 ? 3 : charge > 50 ? 2 : charge > 25 ? 1 : 0;
+
+    if (beeps > 0) {
+      noTone(SOC_GPIO_PIN_BUZZER);
+      delay(800);
+      for (int i = 0; i < beeps; i++) {
+        tone(SOC_GPIO_PIN_BUZZER, 1040, 600); delay(600);
+        noTone(SOC_GPIO_PIN_BUZZER);          delay(250);
+      }
+    }
+
     noTone(SOC_GPIO_PIN_BUZZER);
     pinMode(SOC_GPIO_PIN_BUZZER, nRF52_board == NRF52_SEEED_X1 ?
                                  INPUT_PULLDOWN : INPUT);
