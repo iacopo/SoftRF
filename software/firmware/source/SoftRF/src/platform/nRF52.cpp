@@ -2869,6 +2869,23 @@ static void nRF52_loop()
 
 static void nRF52_fini(int reason)
 {
+#if defined(USE_PWM_SOUND)
+  /* power-off tones: power-on ones played backwards, muted together with them */
+  if (reason == SOFTRF_SHUTDOWN_BUTTON                   &&
+      SOC_GPIO_PIN_BUZZER != SOC_UNUSED_PIN               &&
+      settings->volume != BUZZER_OFF                      &&
+      (settings->ext_opts & EXT_SND_OFF_STARTUP) == 0) {
+    tone(SOC_GPIO_PIN_BUZZER, 1040, 500); delay(500);
+    tone(SOC_GPIO_PIN_BUZZER, 840,  500); delay(500);
+    tone(SOC_GPIO_PIN_BUZZER, 640,  500); delay(500);
+    tone(SOC_GPIO_PIN_BUZZER, 440,  500); delay(600);
+
+    noTone(SOC_GPIO_PIN_BUZZER);
+    pinMode(SOC_GPIO_PIN_BUZZER, nRF52_board == NRF52_SEEED_X1 ?
+                                 INPUT_PULLDOWN : INPUT);
+  }
+#endif /* USE_PWM_SOUND */
+
 #if !defined(ARDUINO_ARCH_MBED) && !defined(ARDUINO_ARCH_ZEPHYR)
   if (nRF52_has_spiflash) {
     usb_msc.setUnitReady(false);
