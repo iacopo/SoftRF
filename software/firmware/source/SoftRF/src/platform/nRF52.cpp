@@ -2740,6 +2740,37 @@ static void nRF52_post_init()
 #endif /* USE_OLED */
 }
 
+#define GNSS_LED_PERIOD_MS  2000 /* one flash every 2 seconds  */
+#define GNSS_LED_FLASH_MS    100 /* flash duration              */
+
+static unsigned long GNSS_LED_TimeMarker = 0;
+static bool          GNSS_LED_is_on      = false;
+
+/* Optional indication of "no GNSS fix" by short flashes of the red LED */
+static void nRF52_GNSS_LED_loop()
+{
+  if (settings->led_gnss != LED_GNSS_NOFIX_RED ||
+      SOC_GPIO_LED_USBMSC == SOC_UNUSED_PIN) {
+    return;
+  }
+
+  if (isValidFix()) {
+    if (GNSS_LED_is_on) {
+      digitalWrite(SOC_GPIO_LED_USBMSC, 1-LED_STATE_ON);
+      GNSS_LED_is_on = false;
+    }
+  } else if (GNSS_LED_is_on) {
+    if (millis() - GNSS_LED_TimeMarker > GNSS_LED_FLASH_MS) {
+      digitalWrite(SOC_GPIO_LED_USBMSC, 1-LED_STATE_ON);
+      GNSS_LED_is_on = false;
+    }
+  } else if (millis() - GNSS_LED_TimeMarker > GNSS_LED_PERIOD_MS) {
+    digitalWrite(SOC_GPIO_LED_USBMSC, LED_STATE_ON);
+    GNSS_LED_is_on      = true;
+    GNSS_LED_TimeMarker = millis();
+  }
+}
+
 static void nRF52_loop()
 {
 #if !defined(ARDUINO_ARCH_MBED) && !defined(ARDUINO_ARCH_ZEPHYR)
@@ -2747,6 +2778,8 @@ static void nRF52_loop()
   if (nrf_wdt_started(NRF_WDT)) {
     Watchdog.reset();
   }
+
+  nRF52_GNSS_LED_loop();
 
   if (!RTC_sync) {
     if (rtc &&
@@ -3679,6 +3712,7 @@ static void nRF52_Sound_test(int var)
 #if defined(USE_BLE_MIDI)
 extern BLEMidi blemidi;
 extern midi::MidiInterface<BLEMidi> MIDI_BLE;
+extern bool BLE_MIDI_enabled;
 #endif /* USE_BLE_MIDI */
 
 static void nRF52_Sound_tone(int hz, uint8_t volume)
@@ -3707,6 +3741,7 @@ static void nRF52_Sound_tone(int hz, uint8_t volume)
 
 #if defined(USE_BLE_MIDI)
   if (volume != BUZZER_OFF  &&
+      BLE_MIDI_enabled      &&
       Bluefruit.connected() &&
       blemidi.notifyEnabled()) {
     if (hz > 0) {

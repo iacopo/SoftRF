@@ -88,6 +88,11 @@ TinyGPSCustom C_Stealth;
 TinyGPSCustom C_noTrack;
 TinyGPSCustom C_PowerSave; /* 19 */
 
+/* Extra settings: optional BLE services, GNSS fix LED */
+TinyGPSCustom X_Version;   /* 1 */
+TinyGPSCustom X_BT_SVC_Off;
+TinyGPSCustom X_LED_GNSS;  /* 3 */
+
 #if defined(USE_OGN_ENCRYPTION)
 /* Security and privacy */
 TinyGPSCustom S_Version;
@@ -168,6 +173,13 @@ void NMEA_setup()
   C_Stealth.begin      (gnss, psrf_c, term_num++);
   C_noTrack.begin      (gnss, psrf_c, term_num++);
   C_PowerSave.begin    (gnss, psrf_c, term_num  ); /* 19 */
+
+  const char *psrf_x = "PSRFX";
+  term_num = 1;
+
+  X_Version.begin      (gnss, psrf_x, term_num++); /* 1 */
+  X_BT_SVC_Off.begin   (gnss, psrf_x, term_num++);
+  X_LED_GNSS.begin     (gnss, psrf_x, term_num  ); /* 3 */
 
 #if defined(USE_OGN_ENCRYPTION)
 /* Security and privacy */
@@ -885,6 +897,51 @@ void NMEA_Process_SRF_SKV_Sentences()
           {
             settings->power_save = atoi(C_PowerSave.value());
             Serial.print(F("PowerSave = ")); Serial.println(settings->power_save);
+            cfg_is_updated = true;
+          }
+
+          if (cfg_is_updated) {
+            SoC->WDT_fini();
+            if (SoC->Bluetooth_ops) { SoC->Bluetooth_ops->fini(); }
+            EEPROM_store();
+            nmea_cfg_restart();
+          }
+        }
+      }
+
+      /*
+       * $PSRFX,?                       - query
+       * $PSRFX,1,<bt_svc_off>,<led_gnss> - set
+       *   bt_svc_off : bit mask of BLE services to disable,
+       *                1 = Nordic UART, 2 = SensBox, 4 = MIDI (0 = all on)
+       *   led_gnss   : 0 = no indication, 1 = red flash while no GNSS fix
+       */
+      if (X_Version.isUpdated()) {
+        if (strncmp(X_Version.value(), "?", 1) == 0) {
+          char psrfx_buf[MAX_PSRFX_LEN];
+
+          snprintf_P(psrfx_buf, sizeof(psrfx_buf),
+              PSTR("$PSRFX,%d,%d,%d*"),
+              PSRFX_VERSION, settings->bt_svc_off, settings->led_gnss);
+
+          NMEA_add_checksum(psrfx_buf, sizeof(psrfx_buf) - strlen(psrfx_buf));
+
+          NMEA_Out(C_NMEA_Source, (byte *) psrfx_buf, strlen(psrfx_buf), false);
+
+        } else if (atoi(X_Version.value()) == PSRFX_VERSION) {
+          bool cfg_is_updated = false;
+
+          if (X_BT_SVC_Off.isUpdated() && strlen(X_BT_SVC_Off.value()) > 0)
+          {
+            settings->bt_svc_off = atoi(X_BT_SVC_Off.value()) & BT_SVC_OFF_MASK;
+            Serial.print(F("BT_SVC_Off = ")); Serial.println(settings->bt_svc_off);
+            cfg_is_updated = true;
+          }
+          if (X_LED_GNSS.isUpdated() && strlen(X_LED_GNSS.value()) > 0)
+          {
+            uint8_t led_gnss = atoi(X_LED_GNSS.value());
+            settings->led_gnss = led_gnss < LED_GNSS_COUNT ? led_gnss : LED_GNSS_NONE;
+            Serial.print(F("LED_GNSS = ")); Serial.println(settings->led_gnss);
             cfg_is_updated = true;
           }
 

@@ -42,6 +42,9 @@ enum
 #define PSRFS_VERSION       1
 #define MAX_PSRFS_LEN       64
 
+#define PSRFX_VERSION       1
+#define MAX_PSRFX_LEN       32
+
 #define PSKVC_VERSION       1
 #define MAX_PSKVC_LEN       64
 

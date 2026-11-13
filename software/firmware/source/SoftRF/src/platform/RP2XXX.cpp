@@ -192,8 +192,8 @@ eeprom_t eeprom_block = {
     POWER_SAVE_NONE,
 
     0,
-    0, /* resvd2 */
-    0, /* resvd3 */
+    0, /* bt_svc_off */
+    0, /* led_gnss */
     0, /* resvd4 */
 
     { 0, 0, 0, 0 },
