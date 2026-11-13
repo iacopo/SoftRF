@@ -1,0 +1,836 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f172a">
+<title>SoftRF Setup</title>
+<style>
+:root {
+  --bg: #f4f5f7;
+  --card: #ffffff;
+  --text: #111827;
+  --muted: #6b7280;
+  --line: #e5e7eb;
+  --accent: #0e7490;
+  --accent-soft: #e0f2f5;
+  --ok: #15803d;
+  --ok-soft: #dcfce7;
+  --warn: #b45309;
+  --warn-soft: #fef3c7;
+  --bad: #b91c1c;
+  --bad-soft: #fee2e2;
+  --radius: 16px;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0b1120;
+    --card: #131c2e;
+    --text: #e5e7eb;
+    --muted: #94a3b8;
+    --line: #23314a;
+    --accent: #38bdd8;
+    --accent-soft: #0f2f3a;
+    --ok: #4ade80;
+    --ok-soft: #12321f;
+    --warn: #fbbf24;
+    --warn-soft: #3a2a0c;
+    --bad: #f87171;
+    --bad-soft: #3b1414;
+  }
+}
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 16px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  padding-bottom: calc(96px + env(safe-area-inset-bottom));
+}
+.wrap { max-width: 560px; margin: 0 auto; padding: 16px; }
+header { display: flex; align-items: center; justify-content: space-between; padding: 8px 0 16px; }
+header h1 { font-size: 22px; margin: 0; letter-spacing: -0.01em; }
+header h1 span { color: var(--accent); }
+.lang { display: flex; gap: 4px; }
+.lang button {
+  border: 1px solid var(--line); background: var(--card); color: var(--muted);
+  border-radius: 8px; padding: 4px 8px; font-size: 13px; cursor: pointer;
+}
+.lang button.on { color: var(--text); border-color: var(--accent); }
+.card {
+  background: var(--card); border-radius: var(--radius);
+  padding: 16px; margin-bottom: 14px;
+  box-shadow: 0 1px 2px rgba(0,0,0,.04);
+}
+.card h2 { font-size: 15px; margin: 0 0 12px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); }
+.hint { font-size: 13px; color: var(--muted); margin: 6px 0 0; }
+.big {
+  width: 100%; border: 0; border-radius: 14px; padding: 16px;
+  font-size: 17px; font-weight: 600; cursor: pointer;
+  background: var(--accent); color: #fff;
+}
+.big:disabled { opacity: .5; cursor: default; }
+.big.secondary { background: var(--accent-soft); color: var(--accent); }
+.row { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 10px 0; border-top: 1px solid var(--line); }
+.row:first-of-type { border-top: 0; }
+.row .label { flex: 1; }
+.row .label small { display: block; color: var(--muted); font-size: 13px; }
+select {
+  font: inherit; color: var(--text); background: var(--bg);
+  border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; max-width: 55%;
+}
+/* segmented control */
+.seg { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 4px; background: var(--bg); padding: 4px; border-radius: 12px; }
+.seg button {
+  border: 0; background: transparent; color: var(--text); font: inherit; font-size: 15px;
+  padding: 9px 4px; border-radius: 9px; cursor: pointer;
+}
+.seg button.on { background: var(--card); box-shadow: 0 1px 3px rgba(0,0,0,.12); font-weight: 600; color: var(--accent); }
+/* choice cards */
+.choices { display: grid; gap: 8px; }
+.choice {
+  display: flex; gap: 12px; align-items: flex-start; text-align: left;
+  border: 2px solid var(--line); background: var(--card); color: var(--text);
+  border-radius: 14px; padding: 12px; cursor: pointer; font: inherit;
+}
+.choice.on { border-color: var(--accent); background: var(--accent-soft); }
+.choice .dot { width: 18px; height: 18px; border-radius: 50%; border: 2px solid var(--line); flex: none; margin-top: 2px; }
+.choice.on .dot { border: 6px solid var(--accent); }
+.choice b { display: block; }
+.choice small { color: var(--muted); }
+/* switch */
+.switch { position: relative; width: 52px; height: 32px; flex: none; }
+.switch input { opacity: 0; width: 0; height: 0; }
+.switch span {
+  position: absolute; inset: 0; background: var(--line); border-radius: 32px; transition: .2s; cursor: pointer;
+}
+.switch span::before {
+  content: ""; position: absolute; width: 26px; height: 26px; left: 3px; top: 3px;
+  background: #fff; border-radius: 50%; transition: .2s; box-shadow: 0 1px 3px rgba(0,0,0,.25);
+}
+.switch input:checked + span { background: var(--accent); }
+.switch input:checked + span::before { transform: translateX(20px); }
+.switch input:disabled + span { opacity: .4; }
+/* status */
+.status { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.pill { font-size: 13px; padding: 4px 10px; border-radius: 999px; background: var(--bg); color: var(--muted); }
+.pill.ok { background: var(--ok-soft); color: var(--ok); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.bad { background: var(--bad-soft); color: var(--bad); }
+.device { display: flex; align-items: center; gap: 12px; }
+.device .icon { width: 44px; height: 44px; border-radius: 12px; background: var(--accent-soft); display: grid; place-items: center; flex: none; }
+.device .name { font-weight: 600; }
+.device .sub { font-size: 13px; color: var(--muted); }
+.preset { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 8px; }
+.preset button {
+  border: 2px solid var(--line); background: var(--card); color: var(--text); font: inherit;
+  border-radius: 14px; padding: 12px; text-align: left; cursor: pointer;
+  display: flex; flex-direction: column; justify-content: flex-start; gap: 2px;
+}
+.preset button b { display: block; font-size: 15px; }
+.preset button small { color: var(--muted); font-size: 12.5px; }
+.preset button.on { border-color: var(--accent); background: var(--accent-soft); }
+details summary { cursor: pointer; font-weight: 600; list-style: none; display: flex; justify-content: space-between; align-items: center; }
+details summary::-webkit-details-marker { display: none; }
+details summary::after { content: "›"; transform: rotate(90deg); transition: .2s; color: var(--muted); font-size: 22px; }
+details[open] summary::after { transform: rotate(-90deg); }
+details .inner { margin-top: 8px; }
+.notice { border-radius: 14px; padding: 12px 14px; font-size: 14px; margin-bottom: 14px; }
+.notice.warn { background: var(--warn-soft); color: var(--warn); }
+.notice.info { background: var(--accent-soft); color: var(--accent); }
+.notice.bad { background: var(--bad-soft); color: var(--bad); }
+.savebar {
+  position: fixed; left: 0; right: 0; bottom: 0;
+  padding: 12px 16px calc(12px + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--bg) 85%, transparent);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line);
+  transform: translateY(110%); transition: transform .25s;
+}
+.savebar.show { transform: none; }
+.savebar .wrap { padding: 0; display: flex; gap: 8px; align-items: center; }
+.savebar .msg { flex: 1; font-size: 14px; color: var(--muted); }
+.savebar .big { width: auto; padding: 14px 22px; }
+.hidden { display: none !important; }
+.steps { font-size: 14px; color: var(--muted); margin-top: 10px; }
+footer { font-size: 12.5px; color: var(--muted); text-align: center; padding: 8px 0 24px; }
+footer a { color: var(--accent); }
+.spin { display: inline-block; width: 14px; height: 14px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: s 0.8s linear infinite; vertical-align: -2px; margin-right: 6px; }
+@keyframes s { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Soft<span>RF</span> Setup</h1>
+  <div class="lang">
+    <button data-lang="it">IT</button>
+    <button data-lang="en">EN</button>
+  </div>
+</header>
+
+<div id="nobt" class="notice warn hidden" data-t="nobt"></div>
+
+<!-- connection -->
+<section class="card" id="connCard">
+  <div id="disconnected">
+    <p style="margin-top:0" data-t="intro"></p>
+    <button class="big" id="btnConnect" data-t="connect"></button>
+    <p class="hint" data-t="introHint"></p>
+  </div>
+  <div id="connected" class="hidden">
+    <div class="device">
+      <div class="icon" aria-hidden="true">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent)"><path d="M6.5 6.5l11 11L12 23V1l5.5 5.5-11 11"/></svg>
+      </div>
+      <div style="flex:1">
+        <div class="name" id="devName">SoftRF</div>
+        <div class="sub" id="devSub"></div>
+      </div>
+      <button class="lang" style="border:0;background:none;padding:0"><span class="pill" id="btnDisconnect" style="cursor:pointer" data-t="disconnect"></span></button>
+    </div>
+    <div class="status" id="status"></div>
+  </div>
+</section>
+
+<div id="busy" class="notice info hidden"></div>
+
+<div id="settings" class="hidden">
+
+  <!-- flight -->
+  <section class="card">
+    <h2 data-t="secFlight"></h2>
+    <div class="row">
+      <div class="label" data-t="aircraft"></div>
+      <select data-f="acft">
+        <option value="7" data-t="acPara"></option>
+        <option value="6" data-t="acHang"></option>
+        <option value="1" data-t="acGlider"></option>
+        <option value="2" data-t="acTow"></option>
+        <option value="8" data-t="acPowered"></option>
+        <option value="3" data-t="acHeli"></option>
+        <option value="10" data-t="acGyro"></option>
+        <option value="4" data-t="acChute"></option>
+        <option value="11" data-t="acBalloon"></option>
+        <option value="13" data-t="acUav"></option>
+        <option value="15" data-t="acStatic"></option>
+      </select>
+    </div>
+    <div style="margin-top:6px">
+      <div class="label" style="margin-bottom:8px" data-t="protocol"></div>
+      <div class="choices" id="protoChoices"></div>
+      <p class="hint" data-t="protocolHint"></p>
+    </div>
+    <div class="row" style="margin-top:8px">
+      <div class="label" data-t="region"></div>
+      <select data-f="band">
+        <option value="1" data-t="bandEU"></option>
+        <option value="2" data-t="bandUS"></option>
+        <option value="3" data-t="bandAU"></option>
+        <option value="4" data-t="bandNZ"></option>
+        <option value="5" data-t="bandRU"></option>
+        <option value="6" data-t="bandCN"></option>
+        <option value="8" data-t="bandIN"></option>
+        <option value="9" data-t="bandIL"></option>
+        <option value="10" data-t="bandKR"></option>
+      </select>
+    </div>
+  </section>
+
+  <!-- app -->
+  <section class="card">
+    <h2 data-t="secApp"></h2>
+    <div class="preset">
+      <button id="presetTraffic"><b data-t="prTraffic"></b><small data-t="prTrafficSub"></small></button>
+      <button id="presetAll"><b data-t="prAll"></b><small data-t="prAllSub"></small></button>
+    </div>
+    <div class="row">
+      <div class="label"><span data-t="sendTraffic"></span><small data-t="sendTrafficSub"></small></div>
+      <label class="switch"><input type="checkbox" data-f="nmea_l"><span></span></label>
+    </div>
+    <div class="row">
+      <div class="label"><span data-t="sendGps"></span><small data-t="sendGpsSub"></small></div>
+      <label class="switch"><input type="checkbox" data-f="nmea_g"><span></span></label>
+    </div>
+    <div class="row">
+      <div class="label"><span data-t="sendBaro"></span><small data-t="sendBaroSub"></small></div>
+      <label class="switch"><input type="checkbox" data-f="nmea_s"><span></span></label>
+    </div>
+    <div class="ext">
+      <div class="row">
+        <div class="label"><span data-t="simpleBt"></span><small data-t="simpleBtSub"></small></div>
+        <label class="switch"><input type="checkbox" id="simpleBt"><span></span></label>
+      </div>
+      <div class="row">
+        <div class="label"><span data-t="plainId"></span><small data-t="plainIdSub"></small></div>
+        <label class="switch"><input type="checkbox" data-f="x_id"><span></span></label>
+      </div>
+    </div>
+  </section>
+
+  <!-- sound & light -->
+  <section class="card">
+    <h2 data-t="secSound"></h2>
+    <div class="label" style="margin-bottom:8px" data-t="volume"></div>
+    <div class="seg" data-seg="vol">
+      <button data-v="0" data-t="volLoud"></button>
+      <button data-v="1" data-t="volLow"></button>
+      <button data-v="2" data-t="volOff"></button>
+    </div>
+    <div class="ext" style="margin-top:8px">
+      <div class="row">
+        <div class="label"><span data-t="sndTraffic"></span><small data-t="sndTrafficSub"></small></div>
+        <label class="switch"><input type="checkbox" data-snd="1"><span></span></label>
+      </div>
+      <div class="row">
+        <div class="label"><span data-t="sndStartup"></span><small data-t="sndStartupSub"></small></div>
+        <label class="switch"><input type="checkbox" data-snd="2"><span></span></label>
+      </div>
+      <div class="row">
+        <div class="label"><span data-t="sndFix"></span><small data-t="sndFixSub"></small></div>
+        <label class="switch"><input type="checkbox" data-snd="4"><span></span></label>
+      </div>
+      <div class="row">
+        <div class="label"><span data-t="ledFix"></span><small data-t="ledFixSub"></small></div>
+        <label class="switch"><input type="checkbox" data-f="x_led"><span></span></label>
+      </div>
+    </div>
+    <p class="hint noext hidden" data-t="noExt"></p>
+  </section>
+
+  <!-- advanced -->
+  <section class="card">
+    <details>
+      <summary data-t="secAdv"></summary>
+      <div class="inner">
+        <div class="row">
+          <div class="label"><span data-t="txpower"></span><small data-t="txpowerSub"></small></div>
+          <select data-f="tx">
+            <option value="0" data-t="txFull"></option>
+            <option value="1" data-t="txLow"></option>
+            <option value="2" data-t="txOff"></option>
+          </select>
+        </div>
+        <div class="row">
+          <div class="label" data-t="alarm"></div>
+          <select data-f="alarm">
+            <option value="0" data-t="alNone"></option>
+            <option value="1" data-t="alDist"></option>
+            <option value="2" data-t="alVector"></option>
+            <option value="3" data-t="alLegacy"></option>
+          </select>
+        </div>
+        <div class="row">
+          <div class="label" data-t="output"></div>
+          <select data-f="nmea_out">
+            <option value="5">Bluetooth</option>
+            <option value="4">USB</option>
+            <option value="1">UART</option>
+            <option value="0" data-t="off"></option>
+          </select>
+        </div>
+        <div class="row">
+          <div class="label"><span data-t="stealth"></span><small data-t="stealthSub"></small></div>
+          <label class="switch"><input type="checkbox" data-f="stealth"><span></span></label>
+        </div>
+        <div class="row">
+          <div class="label"><span data-t="notrack"></span><small data-t="notrackSub"></small></div>
+          <label class="switch"><input type="checkbox" data-f="notrack"><span></span></label>
+        </div>
+        <div class="ext">
+          <div class="row">
+            <div class="label"><span data-t="svcNus"></span><small>Nordic UART</small></div>
+            <label class="switch"><input type="checkbox" data-bt="1"><span></span></label>
+          </div>
+          <div class="row">
+            <div class="label"><span data-t="svcSens"></span><small>SensBox</small></div>
+            <label class="switch"><input type="checkbox" data-bt="2"><span></span></label>
+          </div>
+          <div class="row">
+            <div class="label"><span data-t="svcMidi"></span><small>MIDI</small></div>
+            <label class="switch"><input type="checkbox" data-bt="4"><span></span></label>
+          </div>
+        </div>
+        <p class="hint" style="margin-top:12px"><span data-t="raw"></span> <code id="rawC"></code> <code id="rawX"></code></p>
+      </div>
+    </details>
+  </section>
+</div>
+
+<footer>
+  <span data-t="footer"></span><br>
+  <a href="https://github.com/iacopo/SoftRF" target="_blank" rel="noopener">github.com/iacopo/SoftRF</a>
+</footer>
+</div>
+
+<div class="savebar" id="savebar">
+  <div class="wrap">
+    <div class="msg" id="saveMsg"></div>
+    <button class="big secondary" id="btnUndo" data-t="undo"></button>
+    <button class="big" id="btnSave" data-t="save"></button>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* ------------------------------------------------------------------ texts */
+const T = {
+  it: {
+    nobt: "Questo browser non supporta il Bluetooth. Su iPhone usa un browser come <b>Bluefy</b> o <b>BLE Link</b>; su Android, Mac o PC usa <b>Chrome</b> o <b>Edge</b>.",
+    intro: "Configura il tuo tracker SoftRF dal telefono, via Bluetooth.",
+    connect: "Collega il tracker",
+    introHint: "Accendi il tracker e scollegalo da SeeYou o da altre app: il Bluetooth accetta un solo collegamento alla volta.",
+    disconnect: "Scollega",
+    secFlight: "Volo",
+    aircraft: "Tipo di velivolo",
+    acPara: "Parapendio", acHang: "Deltaplano", acGlider: "Aliante", acTow: "Traino", acPowered: "Aereo a motore",
+    acHeli: "Elicottero", acGyro: "Autogiro", acChute: "Paracadute", acBalloon: "Pallone", acUav: "Drone", acStatic: "Stazione a terra",
+    protocol: "Con chi vuoi vederti",
+    protocolHint: "Il tracker usa un protocollo alla volta: vede e viene visto solo da chi usa lo stesso.",
+    pFanet: "FANET", pFanetSub: "Parapendii e deltaplani (Skytraxx, XC Tracer, Oudie, Naviter…)",
+    pFlarm: "FLARM", pFlarmSub: "Alianti, aerei ed elicotteri con FLARM",
+    pOgn: "OGN", pOgnSub: "Rete di ricevitori a terra Open Glider Network",
+    pAdsl: "ADS-L", pAdslSub: "Nuovo standard europeo per la visibilità reciproca",
+    pP3i: "PilotAware", pP3iSub: "Sistema diffuso nel Regno Unito",
+    region: "Regione radio",
+    bandEU: "Europa / Africa", bandUS: "Nord America", bandAU: "Australia / Sud America", bandNZ: "Nuova Zelanda",
+    bandRU: "Russia", bandCN: "Cina", bandIN: "India", bandIL: "Israele", bandKR: "Corea del Sud",
+    secApp: "App di volo",
+    prTraffic: "Solo traffico", prTrafficSub: "Hai già GPS e vario: es. SeeYou",
+    prAll: "Tutti i dati", prAllSub: "Il tracker fa anche da GPS e vario",
+    sendTraffic: "Traffico", sendTrafficSub: "Gli altri velivoli vicini",
+    sendGps: "Posizione GPS", sendGpsSub: "Spegnilo se l'app usa già un GPS migliore",
+    sendBaro: "Quota e vario", sendBaroSub: "Dal barometro del tracker",
+    simpleBt: "Compatibilità SeeYou", simpleBtSub: "Bluetooth semplificato: necessario per SeeYou Navigator su iPhone",
+    plainId: "Nomi velivoli puliti", plainIdSub: "Mostra «FLR200979» invece di «FLR200979!FLR_200979»",
+    secSound: "Suoni e luci",
+    volume: "Volume",
+    volLoud: "Alto", volLow: "Basso", volOff: "Spento",
+    sndTraffic: "Beep per nuovo velivolo", sndTrafficSub: "Un beep ogni volta che arriva un velivolo nuovo",
+    sndStartup: "Suono di accensione", sndStartupSub: "Quattro note quando accendi",
+    sndFix: "Melodia del GPS", sndFixSub: "Quando trova i satelliti la prima volta",
+    ledFix: "Lampo rosso senza GPS", ledFixSub: "Lampeggia finché non trova i satelliti",
+    noExt: "Le opzioni per singoli suoni, luce e compatibilità SeeYou richiedono il firmware SoftRF del fork iacopo/SoftRF.",
+    secAdv: "Impostazioni avanzate",
+    txpower: "Potenza di trasmissione", txpowerSub: "«Spenta» = solo ricezione: nessuno ti vede",
+    txFull: "Piena", txLow: "Bassa", txOff: "Spenta",
+    alarm: "Tipo di allarme", alNone: "Nessuno", alDist: "Distanza", alVector: "Vettoriale", alLegacy: "Legacy",
+    output: "Uscita dati", off: "Spenta",
+    stealth: "Modalità stealth", stealthSub: "Nasconde alcuni dati agli altri",
+    notrack: "Non tracciare", notrackSub: "Chiede di non comparire sulle mappe online",
+    svcNus: "Canale Nordic UART", svcSens: "Canale SensBox", svcMidi: "Canale MIDI (suoni nell'app)",
+    raw: "Comandi attuali:",
+    undo: "Annulla", save: "Salva",
+    unsaved: n => n === 1 ? "1 modifica da salvare" : n + " modifiche da salvare",
+    footer: "Le impostazioni vengono salvate nel tracker, che si riavvia per applicarle.",
+    connecting: "Collegamento…", reading: "Lettura delle impostazioni…",
+    saving: "Salvataggio… il tracker si riavvia", reconnecting: "Il tracker si sta riavviando, ricollego…",
+    verifying: "Verifica…", saved: "Salvato ✓",
+    errRead: "Il tracker non risponde. Scollegalo da altre app e riprova.",
+    errSave: "Salvataggio non confermato: ricollega il tracker e controlla le impostazioni.",
+    errConn: "Collegamento non riuscito.",
+    lost: "Collegamento perso.",
+    fw: "firmware", fwExt: "con opzioni extra", fwStd: "standard",
+    gpsFix: "GPS ok", gpsNo: "Cerco GPS…", tx: "Trasmette", txNo: "Non trasmette",
+    traffic: n => n + (n === 1 ? " velivolo" : " velivoli"),
+    custom: "Personalizzato"
+  },
+  en: {
+    nobt: "This browser has no Bluetooth support. On iPhone use a browser such as <b>Bluefy</b> or <b>BLE Link</b>; on Android, Mac or PC use <b>Chrome</b> or <b>Edge</b>.",
+    intro: "Set up your SoftRF tracker from your phone, over Bluetooth.",
+    connect: "Connect tracker",
+    introHint: "Turn the tracker on and disconnect it from SeeYou or other apps: Bluetooth accepts one connection at a time.",
+    disconnect: "Disconnect",
+    secFlight: "Flight",
+    aircraft: "Aircraft type",
+    acPara: "Paraglider", acHang: "Hang glider", acGlider: "Glider", acTow: "Tow plane", acPowered: "Powered aircraft",
+    acHeli: "Helicopter", acGyro: "Gyrocopter", acChute: "Parachute", acBalloon: "Balloon", acUav: "Drone", acStatic: "Ground station",
+    protocol: "Who should see you",
+    protocolHint: "The tracker uses one protocol at a time: it only sees, and is seen by, devices on the same one.",
+    pFanet: "FANET", pFanetSub: "Paragliders and hang gliders (Skytraxx, XC Tracer, Oudie, Naviter…)",
+    pFlarm: "FLARM", pFlarmSub: "Gliders, aircraft and helicopters with FLARM",
+    pOgn: "OGN", pOgnSub: "Open Glider Network ground receivers",
+    pAdsl: "ADS-L", pAdslSub: "New European standard for mutual visibility",
+    pP3i: "PilotAware", pP3iSub: "Common in the United Kingdom",
+    region: "Radio region",
+    bandEU: "Europe / Africa", bandUS: "North America", bandAU: "Australia / South America", bandNZ: "New Zealand",
+    bandRU: "Russia", bandCN: "China", bandIN: "India", bandIL: "Israel", bandKR: "South Korea",
+    secApp: "Flight app",
+    prTraffic: "Traffic only", prTrafficSub: "You already have GPS and vario, e.g. SeeYou",
+    prAll: "All data", prAllSub: "The tracker is also your GPS and vario",
+    sendTraffic: "Traffic", sendTrafficSub: "Other aircraft nearby",
+    sendGps: "GPS position", sendGpsSub: "Turn off if the app already has a better GPS",
+    sendBaro: "Altitude and vario", sendBaroSub: "From the tracker's barometer",
+    simpleBt: "SeeYou compatibility", simpleBtSub: "Simplified Bluetooth: needed for SeeYou Navigator on iPhone",
+    plainId: "Clean aircraft names", plainIdSub: "Shows “FLR200979” instead of “FLR200979!FLR_200979”",
+    secSound: "Sound and light",
+    volume: "Volume",
+    volLoud: "Loud", volLow: "Low", volOff: "Off",
+    sndTraffic: "New aircraft beep", sndTrafficSub: "A beep every time a new aircraft shows up",
+    sndStartup: "Power-on sound", sndStartupSub: "Four notes when you switch it on",
+    sndFix: "GPS melody", sndFixSub: "When satellites are found for the first time",
+    ledFix: "Red flash without GPS", ledFixSub: "Flashes until satellites are found",
+    noExt: "Per-event sounds, light and SeeYou compatibility need the SoftRF firmware from the iacopo/SoftRF fork.",
+    secAdv: "Advanced settings",
+    txpower: "Transmit power", txpowerSub: "“Off” = receive only: nobody sees you",
+    txFull: "Full", txLow: "Low", txOff: "Off",
+    alarm: "Alarm type", alNone: "None", alDist: "Distance", alVector: "Vector", alLegacy: "Legacy",
+    output: "Data output", off: "Off",
+    stealth: "Stealth mode", stealthSub: "Hides some data from others",
+    notrack: "No tracking", notrackSub: "Asks not to appear on online maps",
+    svcNus: "Nordic UART channel", svcSens: "SensBox channel", svcMidi: "MIDI channel (sound in apps)",
+    raw: "Current commands:",
+    undo: "Undo", save: "Save",
+    unsaved: n => n === 1 ? "1 change to save" : n + " changes to save",
+    footer: "Settings are stored in the tracker, which restarts to apply them.",
+    connecting: "Connecting…", reading: "Reading settings…",
+    saving: "Saving… the tracker restarts", reconnecting: "The tracker is restarting, reconnecting…",
+    verifying: "Checking…", saved: "Saved ✓",
+    errRead: "The tracker does not answer. Disconnect it from other apps and try again.",
+    errSave: "Save not confirmed: reconnect the tracker and check the settings.",
+    errConn: "Connection failed.",
+    lost: "Connection lost.",
+    fw: "firmware", fwExt: "with extra options", fwStd: "standard",
+    gpsFix: "GPS ok", gpsNo: "Looking for GPS…", tx: "Transmitting", txNo: "Not transmitting",
+    traffic: n => n + (n === 1 ? " aircraft" : " aircraft"),
+    custom: "Custom"
+  }
+};
+let lang = (localStorage.getItem("softrf.lang") || (navigator.language || "en")).slice(0, 2) === "it" ? "it" : "en";
+const t = k => T[lang][k];
+
+function applyLang() {
+  document.documentElement.lang = lang;
+  document.querySelectorAll("[data-t]").forEach(el => {
+    const v = t(el.dataset.t);
+    if (typeof v === "string") el.innerHTML = v;
+  });
+  document.querySelectorAll(".lang button").forEach(b => b.classList.toggle("on", b.dataset.lang === lang));
+  renderProtocols();
+  renderAll();
+}
+document.querySelectorAll(".lang button[data-lang]").forEach(b => b.onclick = () => {
+  lang = b.dataset.lang;
+  try { localStorage.setItem("softrf.lang", lang); } catch (e) {}
+  applyLang();
+});
+
+/* ------------------------------------------------------------- protocols */
+const PROTOCOLS = [
+  { v: 5, n: "pFanet", s: "pFanetSub" },
+  { v: 0, n: "pFlarm", s: "pFlarmSub" },
+  { v: 1, n: "pOgn",   s: "pOgnSub" },
+  { v: 7, n: "pAdsl",  s: "pAdslSub" },
+  { v: 2, n: "pP3i",   s: "pP3iSub" },
+];
+function renderProtocols() {
+  const box = document.getElementById("protoChoices");
+  box.innerHTML = "";
+  PROTOCOLS.forEach(p => {
+    const b = document.createElement("button");
+    b.className = "choice";
+    b.dataset.v = p.v;
+    b.innerHTML = `<span class="dot"></span><span><b>${t(p.n)}</b><small>${t(p.s)}</small></span>`;
+    b.onclick = () => { setField("proto", p.v); };
+    box.appendChild(b);
+  });
+}
+
+/* ----------------------------------------------------------------- NMEA */
+function checksum(body) {
+  let c = 0;
+  for (const ch of body) c ^= ch.charCodeAt(0);
+  return c.toString(16).toUpperCase().padStart(2, "0");
+}
+const sentence = body => `$${body}*${checksum(body)}\r\n`;
+
+/* $PSRFC fields after the sentence name */
+const C_FIELDS = ["ver", "mode", "proto", "band", "acft", "alarm", "tx", "vol", "pointer",
+                  "nmea_g", "nmea_p", "nmea_l", "nmea_s", "nmea_out", "gdl90", "d1090",
+                  "stealth", "notrack", "psave"];
+const X_FIELDS = ["ver", "x_bt", "x_led", "x_snd", "x_id"];
+
+let device = null, chrRx = null, chrTx = null;
+let lineBuf = "";
+let waiters = [];
+let cur = null;       // values read from the tracker
+let edit = null;      // values being edited
+let hasExt = false;
+let live = { fix: null, tx: null, rx: 0 };
+let saving = false;
+
+function onLine(line) {
+  if (!line.startsWith("$")) return;
+  const body = line.slice(1).split("*")[0];
+  const f = body.split(",");
+  if (f[0] === "PFLAU") {
+    live = { rx: parseInt(f[1]) || 0, tx: f[2] === "1", fix: parseInt(f[3]) || 0 };
+    renderStatus();
+  }
+  waiters = waiters.filter(w => {
+    if (f[0] === w.name && f[1] !== "?") { w.resolve(f); return false; }
+    return true;
+  });
+}
+function onData(ev) {
+  lineBuf += new TextDecoder().decode(ev.target.value);
+  let i;
+  while ((i = lineBuf.indexOf("\n")) >= 0) {
+    onLine(lineBuf.slice(0, i).trim());
+    lineBuf = lineBuf.slice(i + 1);
+  }
+  if (lineBuf.length > 512) lineBuf = "";
+}
+function waitFor(name, ms) {
+  return new Promise((resolve, reject) => {
+    const w = { name, resolve };
+    waiters.push(w);
+    setTimeout(() => { waiters = waiters.filter(x => x !== w); reject(new Error("timeout")); }, ms);
+  });
+}
+async function write(text) {
+  const data = new TextEncoder().encode(text);
+  for (let i = 0; i < data.length; i += 20) {
+    const part = data.slice(i, i + 20);
+    if (chrTx.writeValueWithoutResponse) await chrTx.writeValueWithoutResponse(part);
+    else await chrTx.writeValue(part);
+  }
+}
+async function query(name, ms = 3000, tries = 3) {
+  for (let i = 0; i < tries; i++) {
+    const p = waitFor(name, ms);
+    try { await write(sentence(name + ",?")); return await p; }
+    catch (e) { p.catch(() => {}); }
+  }
+  throw new Error("no answer to " + name);
+}
+
+/* ------------------------------------------------------------- Bluetooth */
+const SVC_HM10 = 0xffe0, CHR_HM10 = 0xffe1;
+const SVC_NUS = "6e400001-b5a3-f393-e0a9-e50e24dcca9e";
+const NUS_RX  = "6e400003-b5a3-f393-e0a9-e50e24dcca9e"; // notify (from tracker)
+const NUS_TX  = "6e400002-b5a3-f393-e0a9-e50e24dcca9e"; // write  (to tracker)
+
+async function openGatt() {
+  const server = await device.gatt.connect();
+  try {
+    const s = await server.getPrimaryService(SVC_HM10);
+    chrRx = chrTx = await s.getCharacteristic(CHR_HM10);
+  } catch (e) {
+    const s = await server.getPrimaryService(SVC_NUS);
+    chrRx = await s.getCharacteristic(NUS_RX);
+    chrTx = await s.getCharacteristic(NUS_TX);
+  }
+  chrRx.addEventListener("characteristicvaluechanged", onData);
+  await chrRx.startNotifications();
+  lineBuf = "";
+}
+
+async function connect() {
+  try {
+    device = await navigator.bluetooth.requestDevice({
+      filters: [{ namePrefix: "SoftRF" }],
+      optionalServices: [SVC_HM10, SVC_NUS]
+    });
+  } catch (e) { return; }   // user closed the chooser
+  device.addEventListener("gattserverdisconnected", onDisconnected);
+  busy(t("connecting"));
+  try {
+    await openGatt();
+    await readAll();
+    busy(null);
+    show(true);
+  } catch (e) {
+    console.error(e);
+    busy(e.message && e.message.startsWith("no answer") ? t("errRead") : t("errConn"), "bad");
+    try { device.gatt.disconnect(); } catch (x) {}
+  }
+}
+
+async function readAll() {
+  busy(t("reading"));
+  const c = await query("PSRFC");
+  cur = {};
+  C_FIELDS.forEach((k, i) => cur[k] = parseInt(c[i + 1]) || 0);
+  try {
+    const x = await query("PSRFX", 2500, 2);
+    X_FIELDS.forEach((k, i) => cur[k] = parseInt(x[i + 1]) || 0);
+    hasExt = true;
+  } catch (e) {
+    hasExt = false;
+    Object.assign(cur, { x_bt: 0, x_led: 0, x_snd: 0, x_id: 0 });
+  }
+  edit = { ...cur };
+  renderAll();
+}
+
+function onDisconnected() {
+  if (saving) return;               // expected during save, handled there
+  show(false);
+  busy(t("lost"), "bad");
+}
+
+async function reconnect(timeoutMs = 40000) {
+  const end = Date.now() + timeoutMs;
+  while (Date.now() < end) {
+    await sleep(2000);
+    try { await openGatt(); await sleep(1500); return; } catch (e) {}
+  }
+  throw new Error("reconnect");
+}
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+/* ------------------------------------------------------------------ save */
+function psrfcBody(v) { return "PSRFC," + C_FIELDS.map(k => k === "ver" ? 1 : v[k]).join(","); }
+function psrfxBody(v) { return `PSRFX,1,${v.x_bt},${v.x_led},${v.x_snd},${v.x_id}`; }
+
+async function save() {
+  const needC = C_FIELDS.some(k => edit[k] !== cur[k]);
+  const needX = hasExt && X_FIELDS.some(k => edit[k] !== cur[k]);
+  if (!needC && !needX) return;
+  saving = true;
+  document.getElementById("btnSave").disabled = true;
+  try {
+    const jobs = [];
+    if (needC) jobs.push(psrfcBody(edit));
+    if (needX) jobs.push(psrfxBody(edit));
+    for (const body of jobs) {
+      busy(t("saving"));
+      await write(sentence(body));
+      // the tracker stores the settings and restarts
+      await sleep(1500);
+      if (device.gatt.connected) { try { device.gatt.disconnect(); } catch (e) {} }
+      busy(t("reconnecting"));
+      await reconnect();
+    }
+    busy(t("verifying"));
+    const wanted = { ...edit };
+    await readAll();
+    const ok = C_FIELDS.every(k => cur[k] === wanted[k]) &&
+               (!hasExt || X_FIELDS.every(k => cur[k] === wanted[k]));
+    busy(ok ? t("saved") : t("errSave"), ok ? "ok" : "bad");
+    if (ok) setTimeout(() => busy(null), 2500);
+  } catch (e) {
+    console.error(e);
+    show(false);
+    busy(t("errSave"), "bad");
+  } finally {
+    saving = false;
+    document.getElementById("btnSave").disabled = false;
+    renderAll();
+  }
+}
+
+/* -------------------------------------------------------------------- UI */
+function busy(msg, kind) {
+  const el = document.getElementById("busy");
+  if (!msg) { el.classList.add("hidden"); return; }
+  el.className = "notice " + (kind === "bad" ? "bad" : kind === "ok" ? "info" : "info");
+  el.innerHTML = (kind ? "" : '<span class="spin"></span>') + msg;
+}
+function show(conn) {
+  document.getElementById("disconnected").classList.toggle("hidden", conn);
+  document.getElementById("connected").classList.toggle("hidden", !conn);
+  document.getElementById("settings").classList.toggle("hidden", !conn);
+  if (!conn) document.getElementById("savebar").classList.remove("show");
+  if (conn) {
+    document.getElementById("devName").textContent = device.name || "SoftRF";
+  }
+}
+function setField(k, v) { edit[k] = v; renderAll(); }
+
+function renderStatus() {
+  const s = document.getElementById("status");
+  if (!s || !cur) return;
+  const pills = [];
+  if (live.fix !== null) {
+    pills.push(live.fix > 0 ? `<span class="pill ok">${t("gpsFix")}</span>` : `<span class="pill warn">${t("gpsNo")}</span>`);
+    pills.push(live.tx ? `<span class="pill ok">${t("tx")}</span>` : `<span class="pill">${t("txNo")}</span>`);
+    pills.push(`<span class="pill">${t("traffic")(live.rx)}</span>`);
+  }
+  s.innerHTML = pills.join("");
+  document.getElementById("devSub").textContent =
+    `${t("fw")} ${hasExt ? t("fwExt") : t("fwStd")}`;
+}
+
+function renderAll() {
+  if (!edit) return;
+  // selects
+  document.querySelectorAll("select[data-f]").forEach(el => {
+    const k = el.dataset.f;
+    if (![...el.options].some(o => +o.value === edit[k])) {
+      const o = document.createElement("option"); o.value = edit[k]; o.textContent = edit[k]; el.appendChild(o);
+    }
+    el.value = edit[k];
+  });
+  // switches bound to boolean fields
+  document.querySelectorAll("input[data-f]").forEach(el => el.checked = !!edit[el.dataset.f]);
+  // sounds: switch ON = sound enabled = bit NOT set
+  document.querySelectorAll("input[data-snd]").forEach(el => {
+    el.checked = (edit.x_snd & +el.dataset.snd) === 0;
+    el.disabled = edit.vol === 2;
+  });
+  // BLE services: switch ON = service present = bit NOT set
+  document.querySelectorAll("input[data-bt]").forEach(el => el.checked = (edit.x_bt & +el.dataset.bt) === 0);
+  document.getElementById("simpleBt").checked = (edit.x_bt & 7) === 7;
+  // volume
+  document.querySelectorAll('[data-seg="vol"] button').forEach(b => b.classList.toggle("on", +b.dataset.v === edit.vol));
+  // protocol
+  document.querySelectorAll("#protoChoices .choice").forEach(b => b.classList.toggle("on", +b.dataset.v === edit.proto));
+  // presets
+  const trafficOnly = edit.nmea_l && !edit.nmea_g && !edit.nmea_s;
+  const allData = edit.nmea_l && edit.nmea_g && edit.nmea_s;
+  document.getElementById("presetTraffic").classList.toggle("on", trafficOnly);
+  document.getElementById("presetAll").classList.toggle("on", allData);
+  // extra options
+  document.querySelectorAll(".ext").forEach(e => e.classList.toggle("hidden", !hasExt));
+  document.querySelectorAll(".noext").forEach(e => e.classList.toggle("hidden", hasExt));
+  // raw
+  document.getElementById("rawC").textContent = "$" + psrfcBody(cur);
+  document.getElementById("rawX").textContent = hasExt ? "$" + psrfxBody(cur) : "";
+  // save bar
+  const n = C_FIELDS.filter(k => edit[k] !== cur[k]).length +
+            (hasExt ? X_FIELDS.filter(k => edit[k] !== cur[k]).length : 0);
+  document.getElementById("savebar").classList.toggle("show", n > 0 || saving);
+  document.getElementById("saveMsg").textContent = n ? t("unsaved")(n) : "";
+  renderStatus();
+}
+
+/* ----------------------------------------------------------- UI bindings */
+document.querySelectorAll("select[data-f]").forEach(el => el.onchange = () => setField(el.dataset.f, +el.value));
+document.querySelectorAll("input[data-f]").forEach(el => el.onchange = () => setField(el.dataset.f, el.checked ? 1 : 0));
+document.querySelectorAll("input[data-snd]").forEach(el => el.onchange = () => {
+  const bit = +el.dataset.snd;
+  setField("x_snd", el.checked ? edit.x_snd & ~bit : edit.x_snd | bit);
+});
+document.querySelectorAll("input[data-bt]").forEach(el => el.onchange = () => {
+  const bit = +el.dataset.bt;
+  setField("x_bt", el.checked ? edit.x_bt & ~bit : edit.x_bt | bit);
+});
+document.getElementById("simpleBt").onchange = e => setField("x_bt", e.target.checked ? 7 : 0);
+document.querySelectorAll('[data-seg="vol"] button').forEach(b => b.onclick = () => setField("vol", +b.dataset.v));
+document.getElementById("presetTraffic").onclick = () => {
+  Object.assign(edit, { nmea_l: 1, nmea_g: 0, nmea_s: 0, nmea_out: 5 });
+  if (hasExt) Object.assign(edit, { x_bt: 7, x_id: 1 });
+  renderAll();
+};
+document.getElementById("presetAll").onclick = () => {
+  Object.assign(edit, { nmea_l: 1, nmea_g: 1, nmea_s: 1, nmea_out: 5 });
+  renderAll();
+};
+document.getElementById("btnConnect").onclick = connect;
+document.getElementById("btnDisconnect").onclick = () => { try { device.gatt.disconnect(); } catch (e) {} show(false); busy(null); };
+document.getElementById("btnSave").onclick = save;
+document.getElementById("btnUndo").onclick = () => { edit = { ...cur }; renderAll(); };
+
+if (!navigator.bluetooth) {
+  document.getElementById("nobt").classList.remove("hidden");
+  document.getElementById("btnConnect").disabled = true;
+}
+applyLang();
+</script>
+</body>
+</html>
