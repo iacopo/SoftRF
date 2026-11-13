@@ -38,6 +38,7 @@
 #include "../../driver/Baro.h"
 #include "../../driver/EEPROM.h"
 #include "../../driver/Sound.h"
+#include "../../driver/LED.h"
 #include "../../protocol/data/NMEA.h"
 #include "../../protocol/data/GDL90.h"
 #include "../../protocol/data/D1090.h"
@@ -577,8 +578,10 @@ static void nRF5x_Bluetooth_loop()
     blebas.write(Battery_charge());
   }
 
+  /* LED_status_override: the LED is briefly taken over (GNSS fix flash) */
   if (SOC_GPIO_LED_BLE != SOC_UNUSED_PIN &&
-      SOC_GPIO_LED_BLE != LED_BLUE) {
+      SOC_GPIO_LED_BLE != LED_BLUE       &&
+      !LED_status_override) {
     if (Bluefruit.connected()) {
       digitalWrite(SOC_GPIO_LED_BLE, LED_STATE_ON);
     } else if (Bluefruit.Advertising.isRunning()) {
