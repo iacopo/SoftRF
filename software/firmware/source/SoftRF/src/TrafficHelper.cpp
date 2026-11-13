@@ -256,7 +256,9 @@ static void Traffic_Alert()
     if (true) {
 #endif /* EPAPER || DSI */
 
-      Sound_Notify();
+      if ((settings->ext_opts & EXT_SND_OFF_TRAFFIC) == 0) {
+        Sound_Notify();
+      }
 
     } else {
 #if defined(USE_EPAPER) || defined(USE_DSI)

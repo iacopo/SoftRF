@@ -63,6 +63,17 @@ enum
 	LED_GNSS_COUNT
 };
 
+/*
+ * Miscellaneous user options ("ext_opts" bits).
+ * Default value 0 keeps the legacy behaviour.
+ */
+#define EXT_SND_OFF_TRAFFIC   0x01  /* no beep when a new traffic is received */
+#define EXT_SND_OFF_STARTUP   0x02  /* no power-on tones                      */
+#define EXT_SND_OFF_FIX       0x04  /* no melody on very first GNSS fix       */
+#define EXT_SND_OFF_MASK      (EXT_SND_OFF_TRAFFIC | EXT_SND_OFF_STARTUP | EXT_SND_OFF_FIX)
+#define EXT_NMEA_ID_PLAIN     0x08  /* $PFLAA: no "!callsign" substitute      */
+#define EXT_OPTS_MASK         (EXT_SND_OFF_MASK | EXT_NMEA_ID_PLAIN)
+
 enum
 {
 	EEPROM_EXT_LOAD,
@@ -101,7 +112,7 @@ typedef struct Settings {
     int8_t   freq_corr; /* +/-, kHz */
     uint8_t  bt_svc_off; /* BT_SVC_OFF_* bits, 0 = all services enabled */
     uint8_t  led_gnss;   /* LED_GNSS_*, 0 = no GNSS fix indication      */
-    uint8_t  resvd4;
+    uint8_t  ext_opts;   /* EXT_* bits, 0 = legacy behaviour            */
 
     /* Use a key provided by (local) gliding contest organizer */
     uint32_t igc_key[4];

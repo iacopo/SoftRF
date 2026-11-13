@@ -91,7 +91,9 @@ TinyGPSCustom C_PowerSave; /* 19 */
 /* Extra settings: optional BLE services, GNSS fix LED */
 TinyGPSCustom X_Version;   /* 1 */
 TinyGPSCustom X_BT_SVC_Off;
-TinyGPSCustom X_LED_GNSS;  /* 3 */
+TinyGPSCustom X_LED_GNSS;
+TinyGPSCustom X_Snd_Off;
+TinyGPSCustom X_NMEA_ID;   /* 5 */
 
 #if defined(USE_OGN_ENCRYPTION)
 /* Security and privacy */
@@ -179,7 +181,9 @@ void NMEA_setup()
 
   X_Version.begin      (gnss, psrf_x, term_num++); /* 1 */
   X_BT_SVC_Off.begin   (gnss, psrf_x, term_num++);
-  X_LED_GNSS.begin     (gnss, psrf_x, term_num  ); /* 3 */
+  X_LED_GNSS.begin     (gnss, psrf_x, term_num++);
+  X_Snd_Off.begin      (gnss, psrf_x, term_num++);
+  X_NMEA_ID.begin      (gnss, psrf_x, term_num  ); /* 5 */
 
 #if defined(USE_OGN_ENCRYPTION)
 /* Security and privacy */
@@ -494,7 +498,8 @@ void NMEA_Export()
                     break;
                   }
                 }
-              } else {
+              } else if ((settings->ext_opts & EXT_NMEA_ID_PLAIN) == 0) {
+                /* with EXT_NMEA_ID_PLAIN set the ID goes out alone, like FLARM does */
                 memcpy(NMEA_Callsign, NMEA_CallSign_Prefix[Container[i].protocol],
                   strlen(NMEA_CallSign_Prefix[Container[i].protocol]));
 
@@ -514,10 +519,11 @@ void NMEA_Export()
                             DATA_SOURCE_ADSB : DATA_SOURCE_FLARM;
 
               snprintf_P(NMEABuffer, sizeof(NMEABuffer),
-                      PSTR("$PFLAA,%d,%d,%d,%d,%d,%06X!%s,%d,,%d,%s,%X" PFLAA_EXT1_FMT "*"),
+                      PSTR("$PFLAA,%d,%d,%d,%d,%d,%06X%s%s,%d,,%d,%s,%X" PFLAA_EXT1_FMT "*"),
                       alarm_level,
                       (int) (distance * cos(radians(bearing))), (int) (distance * sin(radians(bearing))),
-                      alt_diff, addr_type, Container[i].addr, NMEA_Callsign,
+                      alt_diff, addr_type, Container[i].addr,
+                      NMEA_Callsign[0] ? "!" : "", NMEA_Callsign,
                       (int) Container[i].course, (int) (Container[i].speed * _GPS_MPS_PER_KNOT),
                       ltrim(str_climb_rate), Container[i].aircraft_type
                       PFLAA_EXT1_ARGS );
@@ -910,19 +916,27 @@ void NMEA_Process_SRF_SKV_Sentences()
       }
 
       /*
-       * $PSRFX,?                       - query
-       * $PSRFX,1,<bt_svc_off>,<led_gnss> - set
+       * $PSRFX,?                                            - query
+       * $PSRFX,1,<bt_svc_off>,<led_gnss>[,<snd_off>[,<nmea_id>]] - set
        *   bt_svc_off : bit mask of BLE services to disable,
        *                1 = Nordic UART, 2 = SensBox, 4 = MIDI (0 = all on)
        *   led_gnss   : 0 = no indication, 1 = red flash while no GNSS fix
+       *   snd_off    : bit mask of buzzer events to mute,
+       *                1 = new traffic beep, 2 = power-on tones,
+       *                4 = first GNSS fix melody (0 = all on)
+       *   nmea_id    : 0 = $PFLAA ID with callsign substitute ("ID!FLR_ID"),
+       *                1 = plain ID unless a real callsign is known
+       * Empty or missing fields keep their current values.
        */
       if (X_Version.isUpdated()) {
         if (strncmp(X_Version.value(), "?", 1) == 0) {
           char psrfx_buf[MAX_PSRFX_LEN];
 
           snprintf_P(psrfx_buf, sizeof(psrfx_buf),
-              PSTR("$PSRFX,%d,%d,%d*"),
-              PSRFX_VERSION, settings->bt_svc_off, settings->led_gnss);
+              PSTR("$PSRFX,%d,%d,%d,%d,%d*"),
+              PSRFX_VERSION, settings->bt_svc_off, settings->led_gnss,
+              settings->ext_opts & EXT_SND_OFF_MASK,
+              settings->ext_opts & EXT_NMEA_ID_PLAIN ? 1 : 0);
 
           NMEA_add_checksum(psrfx_buf, sizeof(psrfx_buf) - strlen(psrfx_buf));
 
@@ -942,6 +956,25 @@ void NMEA_Process_SRF_SKV_Sentences()
             uint8_t led_gnss = atoi(X_LED_GNSS.value());
             settings->led_gnss = led_gnss < LED_GNSS_COUNT ? led_gnss : LED_GNSS_NONE;
             Serial.print(F("LED_GNSS = ")); Serial.println(settings->led_gnss);
+            cfg_is_updated = true;
+          }
+          if (X_Snd_Off.isUpdated() && strlen(X_Snd_Off.value()) > 0)
+          {
+            settings->ext_opts = (settings->ext_opts & ~EXT_SND_OFF_MASK) |
+                                 (atoi(X_Snd_Off.value()) & EXT_SND_OFF_MASK);
+            Serial.print(F("Snd_Off = "));
+            Serial.println(settings->ext_opts & EXT_SND_OFF_MASK);
+            cfg_is_updated = true;
+          }
+          if (X_NMEA_ID.isUpdated() && strlen(X_NMEA_ID.value()) > 0)
+          {
+            if (atoi(X_NMEA_ID.value()) == 1) {
+              settings->ext_opts |=  EXT_NMEA_ID_PLAIN;
+            } else {
+              settings->ext_opts &= ~EXT_NMEA_ID_PLAIN;
+            }
+            Serial.print(F("NMEA_ID = "));
+            Serial.println(settings->ext_opts & EXT_NMEA_ID_PLAIN ? 1 : 0);
             cfg_is_updated = true;
           }
 
