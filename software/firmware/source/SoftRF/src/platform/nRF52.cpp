@@ -2657,16 +2657,20 @@ static void nRF52_GNSS_LED_set(bool on)
   digitalWrite(SOC_GPIO_LED_USBMSC, on ? LED_STATE_ON : 1-LED_STATE_ON);
 
   /*
-   * On boards with a single RGB LED (e.g. Seeed X1) red and green mix
-   * into yellow, so the green "power" indication is paused while flashing.
-   * LED_loop() turns the green LED back on once the override is released.
+   * On boards with a single RGB LED (e.g. Seeed X1) red mixes with the
+   * green "power" and blue "Bluetooth" indications, so both are paused while
+   * flashing. LED_loop() and the Bluetooth loop restore them once the
+   * override is released.
    */
-  if (SOC_GPIO_PIN_STATUS != SOC_UNUSED_PIN) {
-    if (on) {
+  if (on) {
+    if (SOC_GPIO_PIN_STATUS != SOC_UNUSED_PIN) {
       digitalWrite(SOC_GPIO_PIN_STATUS, 1-LED_STATE_ON);
     }
-    LED_status_override = on;
+    if (SOC_GPIO_LED_BLE != SOC_UNUSED_PIN) {
+      digitalWrite(SOC_GPIO_LED_BLE, 1-LED_STATE_ON);
+    }
   }
+  LED_status_override = on;
 
   GNSS_LED_is_on = on;
 }
