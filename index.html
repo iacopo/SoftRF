@@ -76,6 +76,10 @@ header h1 span { color: var(--accent); }
 .row:first-of-type { border-top: 0; }
 .row .label { flex: 1; }
 .row .label small { display: block; color: var(--muted); font-size: 13px; }
+input[type=text] {
+  font: inherit; color: var(--text); background: var(--bg); width: 100%;
+  border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; margin-top: 8px;
+}
 select {
   font: inherit; color: var(--text); background: var(--bg);
   border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; max-width: 55%;
@@ -217,6 +221,10 @@ footer a { color: var(--accent); }
         <option value="13" data-t="acUav"></option>
         <option value="15" data-t="acStatic"></option>
       </select>
+    </div>
+    <div class="row pname" style="display:block">
+      <div class="label"><span data-t="pilotName"></span><small data-t="pilotNameSub"></small></div>
+      <input type="text" id="pilotName" maxlength="20" autocomplete="off" autocapitalize="words" spellcheck="false">
     </div>
     <div style="margin-top:6px">
       <div class="label" style="margin-bottom:8px" data-t="protocol"></div>
@@ -390,6 +398,7 @@ const T = {
     disconnect: "Scollega",
     secFlight: "Volo",
     aircraft: "Tipo di velivolo",
+    pilotName: "Nome pilota (FANET)", pilotNameSub: "Trasmesso ogni 4 minuti agli altri FANET e alle stazioni OGN. Max 20 caratteri, senza accenti. Vuoto = non trasmesso.",
     acPara: "Parapendio", acHang: "Deltaplano", acGlider: "Aliante", acTow: "Traino", acPowered: "Aereo a motore",
     acHeli: "Elicottero", acGyro: "Autogiro", acChute: "Paracadute", acBalloon: "Pallone", acUav: "Drone", acStatic: "Stazione a terra",
     protocol: "Con chi vuoi vederti",
@@ -452,6 +461,7 @@ const T = {
     disconnect: "Disconnect",
     secFlight: "Flight",
     aircraft: "Aircraft type",
+    pilotName: "Pilot name (FANET)", pilotNameSub: "Sent every 4 minutes to other FANET devices and OGN stations. Up to 20 characters, no accents. Empty = not sent.",
     acPara: "Paraglider", acHang: "Hang glider", acGlider: "Glider", acTow: "Tow plane", acPowered: "Powered aircraft",
     acHeli: "Helicopter", acGyro: "Gyrocopter", acChute: "Parachute", acBalloon: "Balloon", acUav: "Drone", acStatic: "Ground station",
     protocol: "Who should see you",
@@ -568,6 +578,7 @@ let cur = null;       // values read from the tracker
 let edit = null;      // values being edited
 let hasExt = false;
 let hasLedProto = false;   // firmware knows the 6th $PSRFX field
+let hasName = false;       // firmware knows $PSRFN (FANET pilot name)
 let live = { fix: null, tx: null, rx: 0 };
 let batt = null;          // volts, from $PSRFH (null = unknown)
 
@@ -688,6 +699,14 @@ async function readAll() {
     hasLedProto = false;
     Object.assign(cur, { x_bt: 0, x_led: 0, x_snd: 0, x_id: 0, x_ledp: 0 });
   }
+  try {
+    const n = await query("PSRFN", 2000, 2);
+    cur.name = (n[2] || "");
+    hasName = true;
+  } catch (e) {
+    hasName = false;
+    cur.name = "";
+  }
   edit = { ...cur };
   renderAll();
 }
@@ -717,11 +736,13 @@ function psrfxBody(v) {
 async function save() {
   const needC = C_FIELDS.some(k => edit[k] !== cur[k]);
   const needX = hasExt && X_FIELDS.some(k => edit[k] !== cur[k]);
-  if (!needC && !needX) return;
+  const needN = hasName && edit.name !== cur.name;
+  if (!needC && !needX && !needN) return;
   saving = true;
   document.getElementById("btnSave").disabled = true;
   try {
     const jobs = [];
+    if (needN) jobs.push("PSRFN,1," + edit.name);   // also restarts the tracker
     if (needC) jobs.push(psrfcBody(edit));
     if (needX) jobs.push(psrfxBody(edit));
     for (const body of jobs) {
@@ -737,7 +758,8 @@ async function save() {
     const wanted = { ...edit };
     await readAll();
     const ok = C_FIELDS.every(k => cur[k] === wanted[k]) &&
-               (!hasExt || X_FIELDS.every(k => cur[k] === wanted[k]));
+               (!hasExt || X_FIELDS.every(k => cur[k] === wanted[k])) &&
+               (!hasName || cur.name === wanted.name);
     busy(ok ? t("saved") : t("errSave"), ok ? "ok" : "bad");
     if (ok) setTimeout(() => busy(null), 2500);
   } catch (e) {
@@ -822,12 +844,16 @@ function renderAll() {
   document.querySelectorAll(".ext").forEach(e => e.classList.toggle("hidden", !hasExt));
   document.querySelectorAll(".noext").forEach(e => e.classList.toggle("hidden", hasExt));
   document.querySelectorAll(".ledp").forEach(e => e.classList.toggle("hidden", !hasLedProto));
+  document.querySelectorAll(".pname").forEach(e => e.classList.toggle("hidden", !hasName));
+  const pn = document.getElementById("pilotName");
+  if (document.activeElement !== pn) pn.value = edit.name || "";
   // raw
   document.getElementById("rawC").textContent = "$" + psrfcBody(cur);
   document.getElementById("rawX").textContent = hasExt ? "$" + psrfxBody(cur) : "";
   // save bar
   const n = C_FIELDS.filter(k => edit[k] !== cur[k]).length +
-            (hasExt ? X_FIELDS.filter(k => edit[k] !== cur[k]).length : 0);
+            (hasExt ? X_FIELDS.filter(k => edit[k] !== cur[k]).length : 0) +
+            (hasName && edit.name !== cur.name ? 1 : 0);
   document.getElementById("savebar").classList.toggle("show", n > 0 || saving);
   document.getElementById("saveMsg").textContent = n ? t("unsaved")(n) : "";
   renderStatus();
@@ -844,6 +870,16 @@ document.querySelectorAll("input[data-bt]").forEach(el => el.onchange = () => {
   const bit = +el.dataset.bt;
   setField("x_bt", el.checked ? edit.x_bt & ~bit : edit.x_bt | bit);
 });
+/* FANET name: printable ASCII without accents and NMEA separators, max 20 */
+function cleanName(s) {
+  return s.normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+          .replace(/[^\x20-\x7E]|[,*$]/g, "").slice(0, 20);
+}
+document.getElementById("pilotName").oninput = e => {
+  const c = cleanName(e.target.value);
+  if (c !== e.target.value) e.target.value = c;
+  setField("name", c.trim());
+};
 document.getElementById("simpleBt").onchange = e => setField("x_bt", e.target.checked ? 7 : 0);
 document.querySelectorAll('[data-seg="vol"] button').forEach(b => b.onclick = () => setField("vol", +b.dataset.v));
 document.getElementById("presetTraffic").onclick = () => {
